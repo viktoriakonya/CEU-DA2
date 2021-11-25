@@ -5,3 +5,25 @@ date: "25/11/2021"
 output: pdf_document
 ---
 
+```{r, echo = F, warnings = F, messages = F}
+
+# Clear environment
+rm(list=ls())
+
+# Load packages with pacman
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+pacman::p_load(tidyverse, modelsummary, lspline, cowplot, boot, estimatr, huxtable, stargazer, fixest,
+               kableExtra, patchwork)
+
+```
+
+
+```{r, echo = F, warnings = F, messages = F}
+
+# Import dataset
+df <- read_csv("https://osf.io/4ay9x/download") 
+
+```
