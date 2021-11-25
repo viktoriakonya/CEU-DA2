@@ -5,7 +5,7 @@ date: "25/11/2021"
 output: pdf_document
 ---
 
-```{r, echo = F, warnings = F, messages = F}
+```{r libraries, echo = F, warnings = F, messages = F}
 
 # Clear environment
 rm(list=ls())
@@ -21,9 +21,82 @@ pacman::p_load(tidyverse, modelsummary, lspline, cowplot, boot, estimatr, huxtab
 ```
 
 
-```{r, echo = F, warnings = F, messages = F}
+```{r dataimport, echo = F, warnings = F, messages = F}
 
 # Import dataset
 df <- read_csv("https://osf.io/4ay9x/download") 
 
 ```
+
+
+```{r datacleaning, echo = F, warnings = F, messages = F}
+
+# Data cleaning 
+
+# Filter for 'Software developers, applications and systems software'
+df <- df %>% filter( occ2012 == 1020 )
+
+# Summary
+summary(df2)
+
+# Create variables
+df2 <- df %>% 
+  # Keep only the useful fields
+  select(stfips, weight, earnwke, uhours, grade92, race, age, sex, state, class) %>% 
+  
+  # Filter : works, has earning, min. BA degree
+  filter( uhours>=20 & earnwke>0 & grade92>=43 )  %>%
+  
+  # Create gender dummy and character version for summary table
+  mutate( female = as.numeric( sex==2 ) ) %>% 
+  mutate( female_char = case_when(
+            female == 1 ~ "Female",
+            female == 0 ~ "Male" )) %>%
+  
+  # Create hourly wage
+  mutate( w = earnwke/uhours ) %>%
+    
+  # Create log hourly wage
+  mutate( lnw=log( w ) ) %>%
+    
+  # Create age square
+  mutate(agesq=age^2) %>%
+    
+  # Create education groups
+  mutate(educ = factor(case_when(
+          grade92 == 43 ~ "BA Degree",
+          grade92 == 44 ~ "MA Degree", 
+          grade92 == 45 ~ "Professional",
+          grade92 == 46 ~ "PhD"),
+          levels = c("BA Degree", 
+                     "MA Degree", 
+                     "Professional",
+                     "PhD"))) %>% 
+    
+  # Create education dummies
+  mutate(
+          educ_BA = ifelse(educ == "BA Degree", 1, 0),
+          educ_MA = ifelse(educ == "MA Degree", 1, 0),  
+          educ_Profess = ifelse(educ == "Professional", 1, 0),  
+          educ_PhD = ifelse(educ == "PhD", 1, 0))
+
+```
+
+
+```{r}
+
+# Summary table
+P95 <- function(x){quantile(x,0.95,na.rm=T)}
+P05 <- function(x){quantile(x,0.05,na.rm=T)}
+Range <- function(x){max(x, na.rm = TRUE) - min(x, na.rm = TRUE)}
+Missing <- function(x){sum(is.na(x))}
+
+# No missings, Elementary school is empty
+datasummary( (`Education level` = as.factor(educ) ) * (` ` = w) ~ 
+               Heading("Gender") * (recode_factor(female, `1` = "Female", `0` = "Male"))  * 
+               (N + Mean + SD + P05 + Median  + P95),
+              data = df2)
+
+
+```
+
