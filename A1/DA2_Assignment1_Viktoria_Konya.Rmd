@@ -1,0 +1,7 @@
+---
+title: "DA2 - Assignment1"
+author: "Viktoria Konya"
+date: "25/11/2021"
+output: pdf_document
+---
+
