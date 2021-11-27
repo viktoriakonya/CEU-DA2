@@ -4,7 +4,7 @@ header-includes: |
   \usepackage{titling}
   \setlength{\droptitle}{-6em} 
 title: "Report on gender differences in earnings"
-author:  "Viktoria Konya"
+author:  "Viktória Kónya"
 geometry: margin=1.8cm
 fontsize: 9pt
 ---
@@ -33,13 +33,13 @@ df_orig <- read_csv("https://osf.io/4ay9x/download")
 ### Introduction
 \vspace{-3mm}
 
-In this report I examine the gender differences in earnings among Financial managers with same educational level. My goal is to evaluate how much the level of education accounts for the variation in hourly wages focusing on earnings of professionals with undergraduate or graduate degrees (BA or higher). 
+In this report I examine the gender differences in earnings among Financial managers with same education level. My goal is to evaluate how much the level of education accounts for the variation in hourly wages focusing on earnings of professionals with undergraduate or graduate degrees (BA or higher). 
 
 \vspace{-5mm}
 ### Sample selection
 \vspace{-3mm}
 
-The source of my analysis is the CPS dataset that I filtered based on occupation code and the education level. Managers between the age of 21 and 64 and with the minimum of 20 working hours per week were considered only in order to focus on the active labor force with degree. Observations with earnings below one dollar per hour were excluded as such low wage is unlikely among Financial managers. The sample consists of 881 observations with 416 women and 446 men.
+The source of my analysis is the CPS dataset that I filtered based on occupation code and the education level. Managers between the age of 21 and 64 and with the minimum of 20 working hours per week were considered only in order to focus on the active labor force with a degree. Observations with earnings below one dollar per hour were excluded as such low wage is unlikely among Financial managers. The sample consists of 881 observations with 416 women and 446 men.
 
 ```{r echo = F, include = F}
 
@@ -103,7 +103,7 @@ df2 <- df %>%
 ```
 
 \vspace{-5mm}
-### Unconditional gender gap
+### Descriptive statistics
 \vspace{-3mm}
 
 The below table summarizes the descriptive statistics of weekly earnings, hours worked per week and hourly wages by genders. 
@@ -138,7 +138,8 @@ datasummary( ( Heading("Gender") * (recode_factor( female, `1` = "Female", `0` =
               title = 'Descriptive statistics' ) %>% 
             kableExtra::kable_styling(latex_options = "hold_position", font_size = 10)
 ```
-The figures suggest that weekly earnings are slightly right-skewed, in case of the female subsample with a long right tail. There is a spike at the higher edge of the distribution which indicates that earnings with 2884.61 USD are subject to topcoding.  The number of hours worked per week is centered around 40 hours and right-skewed suggesting that there are many managers who work overtime (60 or more hours per week). Converting the earnings to hourly wages eliminated the extremes, however it still seems to be slightly right skewed, hence I will use the logarithm of the hourly wages as out outcome variable. We can also note that the average hourly wage advantage of men is about 8 USD.
+The figures suggest that weekly earnings are slightly right-skewed, in case of the female subsample with a long right tail. There is a spike at the higher edge of the distribution which indicates that earnings with 2884.61 USD are subject to topcoding.  The number of hours worked per week is centered around 40 hours and right-skewed suggesting that there are many managers who work overtime (60 or more hours per week). The average hourly wage advantage of men is about 8 USD. Converting the earnings to hourly wages brought the distribution closer to symmetric, however it still seems to be slightly right skewed, hence I will use the logarithm of the hourly wages as the outcome variable. 
+
 
 
 ```{r echo = F, include = F}
@@ -173,12 +174,18 @@ ggplot(df2) +
   theme_minimal() +
   facet_wrap(vars(female_char))
 
+ggplot(df2) +
+  aes(x = lnw) +
+  geom_histogram(bins = 30L, fill = "#112446") +
+  theme_minimal() +
+  facet_wrap(vars(female_char))
+
 ```
 
 \vspace{-5mm}
-### Gender gap by gender and education level
+### Gender gap by education level
 \vspace{-3mm}
-Before we start the regression analysis, let's take a quick look at the outcome variable (logarithm of the hourly wages) by gender and education level. 
+Before we start the regression analysis, let's take a quick look at the outcome variable by gender and education level. 
 
 ```{r echo = F, include = F}
 
@@ -209,7 +216,8 @@ ggplot(df2) +
   theme_minimal() +
   theme(
     plot.title = element_text(size = 11L, hjust = 0.5, face = "bold"),
-    legend.position = "none"
+    legend.position = "none",
+    axis.title.y = element_text(size = 10L)
   ) +
   facet_wrap(vars(female_char)) +
   scale_fill_manual(
@@ -219,19 +227,19 @@ ggplot(df2) +
 
 ```
 \vspace{-10mm}
-The boxplots indicate two things. Firstly, that hourly wages do not grow linearly with the level of education: we can expect earnings to increase with an MA degree in case of both genders but the returns of additional education is not clear. The second note is that the gender gap in seems to remain stable with educational level. 
+The boxplots indicate two things. Firstly, that hourly wages do not grow linearly with the level of education: we can expect earnings to increase with an MA degree in case of both genders but the returns of additional education is not clear. The second note is that the gender gap seems to remain stable with education level. 
 
 ### Regression analysis
 \vspace{-3mm}
 The aim of the regression analysis is to uncover and quantify the extent of the wage gap between male and female Financial managers in this sample. The outcome variable is the logarithm of the hourly wages and the regressor capturing the gender gap is the female dummy variable. This simple log-linear regression model was extended with other factors that determine the gender gap including the education level, age, job type and state.
 
-The first regression model shows the unconditional gender gap. The results indicate that, in the sample, female Financial managers earn 23.7% less, on average, then thier male coworkers. The wage difference is significant at 5%. However, the explanatory power of this model is week as gender explains only 6.5% of the variation of log the hourly wages. 
+The first regression model shows the unconditional gender gap. The results indicate that, in the sample, female Financial managers earn 23.7% less, on average, then their male coworkers. The wage difference is significant at 5%. However, the explanatory power of this model is weak as gender explains only 6.5% of the variation of the log hourly wages. 
 
-Using multiple regression model, we can compare female and male managers with the same level of education. The result of the second regression suggests that even if we compare male and female Financial managers with the same education level, women are expected to earn 21.5% less than their male coworkers in the sample. It also seems that from the education degrees only having an MA degree narrows the gender gap. The coefficient of the MA degree suggests that if we compare Financial managers of the same gender, managers with MA degree earn, on average, 18.3% more then managers with BA degree and the difference is significant. 
+Using multiple regression model, we can compare female and male managers with the same level of education. The result of the second regression suggests that even if we compare male and female Financial managers with the same education level, women are expected to earn 21.5% less than their male coworkers in the sample. It also seems that from the education degrees only having an MA degree explains part of the gender gap. The coefficient of the MA degree suggests that if we compare Financial managers of the same gender, managers with MA degree earn, on average, 18.3% more then managers with BA degree and the difference is significant. 
 
-We can also assume that the pattern in education is different in the two subgroups, as men are more likely to have higher education level (in the sample 36% of men and 24% of women had MA or higher degrees). The interaction terms between gender and the level of education in the third model aims to capture the fractions in the pattern. However, as we examine only a particular profession, the results do not suggest that different patterns in the education explain the variation of the wages (it is in line with the message of the boxplots).
+We can also assume that the pattern in education is different in the two subgroups, as men are more likely to have higher education level (in the sample 36% of men and 24% of women had MA or higher degrees). The interaction terms between gender and the level of education in the third model aims to capture the fractions in the pattern. However, as we examine only a particular profession, the results do not suggest that different patterns in the education explain the variation of the wages.
 
-In regression four to six I controlled for more observable characteristics of managers including the age, the state and the job type (private or public). Age seems to be an strong explanatory variable as by including it in the model increases the performance to 19.6%. However, it also suggests that if we compare Financial managers of the same age and educational level, the wage gap, on average, remains around 20.6%. The same conclusion can be drawn for the gender gap if we look at the last two regressions where we controlled for the state and the job type.
+In regression four to six I controlled for more observable characteristics of managers including the age, the state and the job type (private or public). Age seems to be a strong explanatory variable as by including it in the model increases the performance to 19.6%. However, it also suggests that if we compare Financial managers of the same age and educational level, the wage gap, on average, remains around 20.7%. The same conclusion can be drawn for the gender gap if we look at the last two regressions where we controlled for the state and the job type.
 
 
 ```{r , echo=FALSE , include = F}
@@ -239,10 +247,8 @@ In regression four to six I controlled for more observable characteristics of ma
 # 1) Unconditional wage gap
 reg1 <- lm_robust(lnw ~ female, data = df2 , se_type = "HC1")
 
-
 # 2) Conditional on Wage gap conditional on educ
 reg2 <- lm_robust(lnw ~ female + educ_MA + educ_Profess + educ_PhD, data = df2 , se_type = "HC1")
-
 
 # 3) Conditional on Wage gap conditional on educ, educ x female
 reg3 <- lm_robust(lnw ~ female + educ_MA + educ_Profess + educ_PhD + educ_MA * female + educ_Profess * female + educ_PhD * female, data = df2 , se_type = "HC1")
@@ -255,7 +261,6 @@ reg5 <- lm_robust(lnw ~ female + educ_MA + educ_Profess + educ_PhD + age + agesq
 
 # 6) Conditional on Wage gap conditional on educ, educ x female, age, agesq, class, state
 reg6 <- lm_robust(lnw ~ female + educ_MA + educ_Profess + educ_PhD  + age + agesq + class_cat + factor(state), data = df2 , se_type = "HC1")
-
 
 # Summarizing results
 msummary(list("Model 1" = reg1, "Model 2" = reg2, "Model 3" = reg3, "Model 4" = reg4, "Model 5" = reg5, "Model 6" = reg6),
@@ -306,7 +311,7 @@ R-squared                               & 0.065                   & 0.096       
 
 ###  Summary and Statistical inference
 \vspace{-3mm}
-According to the estimate of the unconditional wage gap, female Financial managers are expected to earn 23.7% less then their male coworkers in this sample and this gap seems stable across model versions where we controlled for more observable characteristics. The level of education seems to account for a small part of the variation in the hourly earnings and only having an MA degree narrows the wage gap by about 2 percentage points in the sample. What can we infer from our results? Our data represents US Financial managers with undergraduate or higher degrees in 2014. To make statistical inference let's look at the point estimates of the gender dummy and its confidence interval across model versions. If we compare the estimates and the CIs between the model with the unconditional gender gap and conditional on education, age etc. we can see that the point estimates are close to each other and the CIs overlap. It indicates in the population the these estimates can also be close to each other.
+According to the estimate of the unconditional wage gap, female Financial managers are expected to earn 23.7% less then their male coworkers in the sample and this gap seems stable across model versions where we controlled for more observable characteristics. The level of education seems to account for a small part of the variation in the hourly earnings and only having an MA degree narrows the wage gap by about 2 percentage points in the sample. What can we infer from our results? Our data represents US Financial managers with undergraduate or higher degrees in 2014. To make statistical inference let's look at the point estimates of the gender dummy and its confidence interval across model versions. If we compare the estimates and the CIs between the model with the unconditional gender gap and conditional on education, age etc. we can see that the point estimates are close to each other and the CIs overlap. It indicates that in the population represented by our sample these estimates can also be close to each other.
 
 ```{r, echo = F,   fig.align='center',, fig.height=2.8, fig.width=4}
 
