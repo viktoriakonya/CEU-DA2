@@ -1,51 +1,61 @@
 ---
-title: "DA2 - Assignment1"
-author: "Viktoria Konya"
-date: "25/11/2021"
 output: pdf_document
+header-includes: |
+  \usepackage{titling}
+  \setlength{\droptitle}{-6em} 
+title: "Report on gender differences in earnings"
+author:  "Viktoria Konya"
+geometry: margin=1.8cm
+fontsize: 9pt
 ---
 
-```{r libraries, echo = F, warnings = F, messages = F}
+```{r echo = F, include = F}
 
 # Clear environment
 rm(list=ls())
 
-# Load packages with pacman
-if (!require("pacman")) {
-  install.packages("pacman")
-}
-
-pacman::p_load(tidyverse, modelsummary, lspline, cowplot, boot, estimatr, huxtable, stargazer, fixest,
-               kableExtra, patchwork)
+# Import libraries
+library(tidyverse)
+library(modelsummary)
+library(kableExtra)
+library(estimatr)
 
 ```
 
-
-```{r dataimport, echo = F, warnings = F, messages = F}
+```{r echo = F, include = F}
 
 # Import dataset
-df <- read_csv("https://osf.io/4ay9x/download") 
+df_orig <- read_csv("https://osf.io/4ay9x/download") 
 
 ```
 
+\vspace{-18mm}
+### Introduction
+\vspace{-3mm}
 
-```{r datacleaning, echo = F, warnings = F, messages = F}
+In this report I examine the gender differences in earnings among Financial managers with same educational level. My goal is to evaluate how much the level of education accounts for the variation in hourly wages focusing on earnings of professionals with undergraduate or graduate degrees (BA or higher). 
+
+\vspace{-5mm}
+### Sample selection
+\vspace{-3mm}
+
+The source of my analysis is the CPS dataset that I filtered based on occupation code and the education level. Managers between the age of 21 and 64 and with the minimum of 20 working hours per week were considered only in order to focus on the active labor force with degree. Observations with earnings below one dollar per hour were excluded as such low wage is unlikely among Financial managers. The sample consists of 881 observations with 416 women and 446 men.
+
+```{r echo = F, include = F}
 
 # Data cleaning 
 
-# Filter for 'Software developers, applications and systems software'
-df <- df %>% filter( occ2012 == 1020 )
+# Filter for occupation - 1020: Financial managers
+df <- df_orig %>% filter( occ2012 %in% c(0120) )
 
-# Summary
-summary(df2)
-
-# Create variables
+# Data preparation
 df2 <- df %>% 
+  
   # Keep only the useful fields
   select(stfips, weight, earnwke, uhours, grade92, race, age, sex, state, class) %>% 
   
-  # Filter : works, has earning, min. BA degree
-  filter( uhours>=20 & earnwke>0 & grade92>=43 )  %>%
+  # Filter : works, has hourly earning larger than one dollar, min. BA degree
+  filter( uhours>=20 & earnwke>uhours & grade92>=43 & age>=21 & age<=64)  %>%
   
   # Create gender dummy and character version for summary table
   mutate( female = as.numeric( sex==2 ) ) %>% 
@@ -62,7 +72,7 @@ df2 <- df %>%
   # Create age square
   mutate(agesq=age^2) %>%
     
-  # Create education groups
+  # Create education groups for summary table
   mutate(educ = factor(case_when(
           grade92 == 43 ~ "BA Degree",
           grade92 == 44 ~ "MA Degree", 
@@ -78,25 +88,255 @@ df2 <- df %>%
           educ_BA = ifelse(educ == "BA Degree", 1, 0),
           educ_MA = ifelse(educ == "MA Degree", 1, 0),  
           educ_Profess = ifelse(educ == "Professional", 1, 0),  
-          educ_PhD = ifelse(educ == "PhD", 1, 0))
+          educ_PhD = ifelse(educ == "PhD", 1, 0))  %>%
+
+  # Create class flag
+  mutate(class_cat = factor(case_when(
+            class %in% c('Government - Federal' , 'Government - State', 'Government - Local') ~ 1,
+            class %in% c('Private, For Profit' , 'Private, Nonprofit') ~ 0)))
+    
+
+
+# Summary
+# summary(df2)
 
 ```
 
+\vspace{-5mm}
+### Unconditional gender gap
+\vspace{-3mm}
 
-```{r}
+The below table summarizes the descriptive statistics of weekly earnings, hours worked per week and hourly wages by genders. 
 
-# Summary table
+\vspace{-5mm}
+```{r echo = F}
+
+# Summary table of earnings
 P95 <- function(x){quantile(x,0.95,na.rm=T)}
 P05 <- function(x){quantile(x,0.05,na.rm=T)}
-Range <- function(x){max(x, na.rm = TRUE) - min(x, na.rm = TRUE)}
-Missing <- function(x){sum(is.na(x))}
+# Range <- function(x){max(x, na.rm = TRUE) - min(x, na.rm = TRUE)}
+# Missing <- function(x){sum(is.na(x))}
 
-# No missings, Elementary school is empty
+
+# With gender on the top
+# datasummary( ( ( `Weekly earnings` = earnwke ) + 
+#                 ( `Hours worked` = uhours ) +
+#                 ( `Hourly wage` = w ) ) ~ 
+#                Heading("Gender") * (recode_factor( female, `1` = "Female", `0` = "Male") )  * 
+#                (Mean + SD + Min + Max + P05 + Median  + P95),
+#               data = df2,
+#               title = 'Descriptive statistics' ) %>% 
+#             kableExtra::kable_styling(latex_options = "hold_position", font_size = 7)
+
+datasummary( ( Heading("Gender") * (recode_factor( female, `1` = "Female", `0` = "Male") )  * Heading("Variable") * (
+                ( `Weekly earnings` = earnwke ) + 
+                ( `Hours worked per week` = uhours ) +
+                ( `Hourly wage` = w ) ) ) ~ 
+               
+               (Mean + SD + Min + Max + P05 + Median  + P95),
+              data = df2,
+              title = 'Descriptive statistics' ) %>% 
+            kableExtra::kable_styling(latex_options = "hold_position", font_size = 10)
+```
+The figures suggest that weekly earnings are slightly right-skewed, in case of the female subsample with a long right tail. There is a spike at the higher edge of the distribution which indicates that earnings with 2884.61 USD are subject to topcoding.  The number of hours worked per week is centered around 40 hours and right-skewed suggesting that there are many managers who work overtime (60 or more hours per week). Converting the earnings to hourly wages eliminated the extremes, however it still seems to be slightly right skewed, hence I will use the logarithm of the hourly wages as out outcome variable. We can also note that the average hourly wage advantage of men is about 8 USD.
+
+
+```{r echo = F, include = F}
+
+# Distributions of wage and hours
+
+# Earnings
+ggplot(df2) +
+  aes(x = earnwke) +
+  geom_histogram(bins = 30L, fill = "#112446") +
+  theme_minimal() +
+  facet_wrap(vars(female_char))
+
+# Hours worked
+ggplot(df2) +
+  aes(x = uhours) +
+  geom_histogram(bins = 30L, fill = "#112446") +
+  theme_minimal() +
+  facet_wrap(vars(female_char))
+
+# Hourly wage
+ggplot(df2) +
+  aes(x = w) +
+  geom_histogram(bins = 30L, fill = "#112446") +
+  theme_minimal() +
+  facet_wrap(vars(female_char))
+
+# Ln hourly wage
+ggplot(df2) +
+  aes(x = lnw) +
+  geom_histogram(bins = 30L, fill = "#112446") +
+  theme_minimal() +
+  facet_wrap(vars(female_char))
+
+```
+
+\vspace{-5mm}
+### Gender gap by gender and education level
+\vspace{-3mm}
+Before we start the regression analysis, let's take a quick look at the outcome variable (logarithm of the hourly wages) by gender and education level. 
+
+```{r echo = F, include = F}
+
+# Summary table of hourly wages by gender and education level
+P95 <- function(x){quantile(x,0.95,na.rm=T)}
+P05 <- function(x){quantile(x,0.05,na.rm=T)}
+
 datasummary( (`Education level` = as.factor(educ) ) * (` ` = w) ~ 
-               Heading("Gender") * (recode_factor(female, `1` = "Female", `0` = "Male"))  * 
+               Heading("Gender") * (recode_factor( female, `1` = "Female", `0` = "Male") )  * 
                (N + Mean + SD + P05 + Median  + P95),
-              data = df2)
+              data = df2,
+              title = 'Descriptive statistics' ) %>% kableExtra::kable_styling(latex_options = "hold_position")
+
+```
+
+\vspace{-7mm}
+```{r echo = F, fig.align='center', fig.height=2.8, fig.width=6.5, warning=FALSE, message=FALSE}
+
+# Summary of hourly wages by gender and education level - Boxplot
+ggplot(df2) +
+  aes(x = educ, y = lnw, fill = female_char) +
+  geom_boxplot(shape = "circle") +
+  labs(
+    x = " ",
+    y = "Log of Hourly wages"
+    #title = "Summary statistics of Hourly wages"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 11L, hjust = 0.5, face = "bold"),
+    legend.position = "none"
+  ) +
+  facet_wrap(vars(female_char)) +
+  scale_fill_manual(
+    values = c(Female = "#2c7fb8",
+    Male = "#2ca25f"))
 
 
 ```
+\vspace{-10mm}
+The boxplots indicate two things. Firstly, that hourly wages do not grow linearly with the level of education: we can expect earnings to increase with an MA degree in case of both genders but the returns of additional education is not clear. The second note is that the gender gap in seems to remain stable with educational level. 
+
+### Regression analysis
+\vspace{-3mm}
+The aim of the regression analysis is to uncover and quantify the extent of the wage gap between male and female Financial managers in this sample. The outcome variable is the logarithm of the hourly wages and the regressor capturing the gender gap is the female dummy variable. This simple log-linear regression model was extended with other factors that determine the gender gap including the education level, age, job type and state.
+
+The first regression model shows the unconditional gender gap. The results indicate that, in the sample, female Financial managers earn 23.7% less, on average, then thier male coworkers. The wage difference is significant at 5%. However, the explanatory power of this model is week as gender explains only 6.5% of the variation of log the hourly wages. 
+
+Using multiple regression model, we can compare female and male managers with the same level of education. The result of the second regression suggests that even if we compare male and female Financial managers with the same education level, women are expected to earn 21.5% less than their male coworkers in the sample. It also seems that from the education degrees only having an MA degree narrows the gender gap. The coefficient of the MA degree suggests that if we compare Financial managers of the same gender, managers with MA degree earn, on average, 18.3% more then managers with BA degree and the difference is significant. 
+
+We can also assume that the pattern in education is different in the two subgroups, as men are more likely to have higher education level (in the sample 36% of men and 24% of women had MA or higher degrees). The interaction terms between gender and the level of education in the third model aims to capture the fractions in the pattern. However, as we examine only a particular profession, the results do not suggest that different patterns in the education explain the variation of the wages (it is in line with the message of the boxplots).
+
+In regression four to six I controlled for more observable characteristics of managers including the age, the state and the job type (private or public). Age seems to be an strong explanatory variable as by including it in the model increases the performance to 19.6%. However, it also suggests that if we compare Financial managers of the same age and educational level, the wage gap, on average, remains around 20.6%. The same conclusion can be drawn for the gender gap if we look at the last two regressions where we controlled for the state and the job type.
+
+
+```{r , echo=FALSE , include = F}
+
+# 1) Unconditional wage gap
+reg1 <- lm_robust(lnw ~ female, data = df2 , se_type = "HC1")
+
+
+# 2) Conditional on Wage gap conditional on educ
+reg2 <- lm_robust(lnw ~ female + educ_MA + educ_Profess + educ_PhD, data = df2 , se_type = "HC1")
+
+
+# 3) Conditional on Wage gap conditional on educ, educ x female
+reg3 <- lm_robust(lnw ~ female + educ_MA + educ_Profess + educ_PhD + educ_MA * female + educ_Profess * female + educ_PhD * female, data = df2 , se_type = "HC1")
+
+# 4) Conditional on Wage gap conditional on educ, educ x female, age, agesq
+reg4 <- lm_robust(lnw ~ female + educ_MA + educ_Profess + educ_PhD + age + agesq, data = df2 , se_type = "HC1")
+
+# 5) Conditional on Wage gap conditional on educ, educ x female, age, agesq, class
+reg5 <- lm_robust(lnw ~ female + educ_MA + educ_Profess + educ_PhD + age + agesq + class_cat, data = df2 , se_type = "HC1")
+
+# 6) Conditional on Wage gap conditional on educ, educ x female, age, agesq, class, state
+reg6 <- lm_robust(lnw ~ female + educ_MA + educ_Profess + educ_PhD  + age + agesq + class_cat + factor(state), data = df2 , se_type = "HC1")
+
+
+# Summarizing results
+msummary(list("Model 1" = reg1, "Model 2" = reg2, "Model 3" = reg3, "Model 4" = reg4, "Model 5" = reg5, "Model 6" = reg6),
+         fmt="%.4f",
+         gof_omit = 'DF|Deviance|Log.Lik.|F|R2 Adj.|AIC|BIC',
+         stars=c('*' = .05, '**' = .01)
+)
+
+
+```
+
+\vspace{-5mm}
+\vspace{-\parsep}
+```{=latex}
+
+\begin{table}[]
+\centering
+\begin{tabular}{lllllll}
+\multicolumn{7}{c}{Table 2 : Regression output}                                                                                                                                                     \\ \midrule
+\multicolumn{7}{c}{Dependent variable: Log of Hourly wages}                                                                                                                                         \\
+Variable                                & \multicolumn{1}{c}{(1)} & \multicolumn{1}{c}{(2)} & \multicolumn{1}{c}{(3)} & \multicolumn{1}{c}{(4)} & \multicolumn{1}{c}{(5)} & \multicolumn{1}{c}{(6)} \\ \midrule
+Intercept                               & 3.6374**                & 3.5730**                & 3.5709**                & 1.8261**                & 1.8455**                & 1.7858**                \\
+                                        & (0.0208)                & (0.0235)                & (0.0254)                & (0.2357)                & (0.2364)                & (0.2513)                \\
+female                                  & -0.2371**               & -0.2153**               & -0.2112**               & -0.2069**               & -0.2092**               & -0.2174**               \\
+                                        & (0.0304)                & (0.0302)                & (0.0359)                & (0.0287)                & (0.0288)                & (0.0301)                \\
+educ\_MA                                &                         & 0.1829**                & 0.1835**                & 0.1602**                & 0.1586**                & 0.1441**                \\
+                                        &                         & (0.0333)                & (0.0436)                & (0.0320)                & (0.0321)                & (0.0343)                \\
+educ\_Profess                           &                         & 0.0973                  & 0.3081                  & 0.0829                  & 0.0814                  & 0.0306                  \\
+                                        &                         & (0.1188)                & (0.1891)                & 0.1042)                 & (0.1024)                & (0.1163)                \\
+educ\_PhD                               &                         & 0.0934                  & 0.1312                  & 0.0464                  & 0.0374                  & 0.0408                  \\
+                                        &                         & (0.1854)                & (0.1797)                & (0.1931)                & (0.1909)                & (0.1871)                \\
+female × educ\_MA                       &                         &                         & -0.0002                 &                         &                         &                         \\
+                                        &                         &                         & (0.0676)                &                         &                         &                         \\
+female × educ\_Profess                  &                         &                         & -0.3381                 &                         &                         &                         \\
+                                        &                         &                         & (0.2251)                &                         &                         &                         \\
+female × educ\_PhD                      &                         &                         & -0.1470                 &                         &                         &                         \\
+                                        &                         &                         & (0.5326)                &                         &                         &                         \\
+Age + Agesq                             &                         &                         &                         & Y                       & Y                       & Y                       \\
+Class                                   &                         &                         &                         &                         & Y                       & Y                       \\ 
+FIPS                                    &                         &                         &                         &                         &                         & Y                       \\ \midrule
+Observations                            & 881                     & 881                     & 881                     & 881                     & 881                     & 881                     \\ 
+R-squared                               & 0.065                   & 0.096                   & 0.097                   & 0.194                   & 0.196                   & 0.250                   \\ \midrule
+* p \textless 0.05, ** p \textless 0.01 &                         &                         &                         &                         &                         &                        
+\end{tabular}
+\end{table}
+```
+
+
+###  Summary and Statistical inference
+\vspace{-3mm}
+According to the estimate of the unconditional wage gap, female Financial managers are expected to earn 23.7% less then their male coworkers in this sample and this gap seems stable across model versions where we controlled for more observable characteristics. The level of education seems to account for a small part of the variation in the hourly earnings and only having an MA degree narrows the wage gap by about 2 percentage points in the sample. What can we infer from our results? Our data represents US Financial managers with undergraduate or higher degrees in 2014. To make statistical inference let's look at the point estimates of the gender dummy and its confidence interval across model versions. If we compare the estimates and the CIs between the model with the unconditional gender gap and conditional on education, age etc. we can see that the point estimates are close to each other and the CIs overlap. It indicates in the population the these estimates can also be close to each other.
+
+```{r, echo = F,   fig.align='center',, fig.height=2.8, fig.width=4}
+
+# Estimated coefficients with CI
+
+SI <- data.frame(matrix(NA, nrow = 6, ncol = 5))
+colnames(SI)<- c("model", "coeff","conf_low","conf_high", "std")
+
+for (i in 1:6) {
+  
+  SI$model[i] <- paste0('Model',i)
+  SI$coeff[i] <- eval(as.name(paste0('reg',i)))$coefficients[2]  
+  SI$conf_low[i] <- eval(as.name(paste0('reg',i)))$conf.low[2] 
+  SI$conf_high[i] <- eval(as.name(paste0('reg',i)))$conf.high[2]  
+  SI$std[i] <- eval(as.name(paste0('reg',i)))$std.error[2]  
+
+}
+
+
+ggplot(SI, aes(x = coeff, y = model, xmin = conf_low, xmax = conf_high)) +
+  geom_errorbarh(height=.2, aes(color = model), size = 1) +
+  geom_point(size = 2.5) +
+  theme_bw() +
+  labs(x = "Coefficient and CI", y= "") +
+  scale_color_viridis_d() +
+  theme(
+    legend.position = "none",
+    axis.title.x = element_text(face = "bold"),
+    axis.text.y = element_text(face = "bold"))
+
+```
+
 
