@@ -2,10 +2,11 @@
 output: pdf_document
 header-includes: |
   \usepackage{titling}
+  \usepackage{float}
   \setlength{\droptitle}{-6em} 
 title: "Report on hotel ratings"
 author:  "Viktória Kónya"
-geometry: margin=1.8cm
+geometry: margin=2cm
 fontsize: 9pt
 ---
 
@@ -22,25 +23,22 @@ library(estimatr) # robust SE
 library(mfx) # marginal diffs
 library(pscl) # Pseudo R2
 library(MLmetrics) # Log-loss
+library(gridExtra) # double-plots
 
 ```
 
 
 ```{r echo = F, include = F}
 
-# Import dataset, joins, data cleaning
+# Import dataset, data cleaning
 
-# Import datasets
-hotels_europe_price <- read.csv("https://osf.io/p6tyr/download")
+# Import dataset
 hotels_europe_features <- read.csv("https://osf.io/utwjs/download")
 
-# Join dataset
-hotels <- inner_join(hotels_europe_price, hotels_europe_features, by = "hotel_id")
-rm(hotels_europe_price,hotels_europe_features)
-
-# Data cleaning
-hotels <- hotels %>% 
+# Data cleaning - 771 obs.
+hotels <- hotels_europe_features %>% 
   filter( city_actual == "Barcelona" ) %>% 
+  dplyr::select( hotel_id, city_actual, rating, distance, stars, accommodation_type, rating_reviewcount )  %>%
   # filter ( accommodation_type == "Hotel" )  %>% #filter for hotels or not?
   mutate( highly_rated = case_when(
               rating >= 4 ~ 1,
@@ -48,6 +46,8 @@ hotels <- hotels %>%
 
 # Summary                
 datasummary_skim( hotels ) 
+
+rm(hotels_europe_features)
 
 ```
 
@@ -83,21 +83,233 @@ datasummary(  ( Heading("Rating category") *
 
 
 ```
-Almost two-thirds of the hotels have 4 or higher ratings. We can see that the average distance from the city center is about 0.2 kilometers higher in case of the highly rated hotels, with about the same standard deviation. Hotel stars range between 1 and 5 stars in both rating groups, however the median number of stars is 4 in case of the highly rated, and 3 in case of the hotels with lower ratings. We can also see that the number rating reviews range in a wide scale including observations with very few ratings and highly rated hotels have more reviews. For the later analysis, I excluded hotels with less than 100 reviews to avoid the noise by ratings with few reviews.I also kept observations of all type of accommodation in the dataset as restricting the analysis to hotels only would narrow down the comparison by the number of stars.
+Almost 60% of the hotels have 4 or higher ratings. We can see that the average distance from the city center is about 0.1 kilometer higher in case of the highly rated hotels, and the standard deviations are about the same. Hotel stars range between 1 and 5 stars in both rating groups, however the median number of stars is 4 in case of the highly rated, and 3 in case of the hotels with lower ratings. We can also see that the number rating reviews range in a wide scale including observations with very few ratings. For the later analysis, I excluded hotels with less than 50 reviews to avoid the noise by ratings with few reviews.I also kept observations of all type of accommodation in the dataset as restricting the analysis to hotels only would narrow down the comparison by the number of stars.
 
 ```{r echo = F, include = F}
 
-# Additional data filtering and category creation
+# Additional data filtering and category creation - 506 obs.
 hotels <- hotels %>% 
-            filter(rating_reviewcount >= 100) %>% #filter out items with low # of ratings
+            filter(rating_reviewcount >= 50) %>% #filter out items with low # of ratings
             mutate(accommodation_type_cat = factor(case_when(
                   accommodation_type == 'Hotel' ~ 'Hotel',
                   accommodation_type %in% c('Apart-hotel', 'Apartment') ~ 'Apartment',
-                  accommodation_type %in% c('Bed and breakfast', 'Pension') ~ 'Pension and B&B',
+                  accommodation_type %in% c('Bed and breakfast', 'Pension', 'Guest House') ~ 'Pension and B&B',
                   accommodation_type == 'Hostel' ~ 'Hostel'),
                   levels = c('Hotel', 'Apartment', 'Pension and B&B', 'Hostel')))
-          
+     
+table(hotels$accommodation_type)
+
 ```
+
+
+### Regression analysis
+
+In order to analyze the determinants of high rating, I estimated LPM, logit and probit models for the probability of being highly rated. The left hand side variable the binary variable showing if the hotel had 4 or above rating, and the predictors are the number of stars, the distance from the city center and the type of the accommodation. Accommodation types with very few observations were grouped together in order to create meaningful categories.
+
+```{r, echo = F, include = F}
+
+# Probability models
+
+# A. LPM
+lpm <- lm_robust(highly_rated ~ stars + distance + accommodation_type_cat, data=hotels, se_type = "HC1")
+summary( lpm )
+
+# B. Logit
+logit <- glm(highly_rated ~ stars +distance + accommodation_type_cat, data=hotels, family='binomial'(link="logit"))
+summary(logit)
+
+logit_marg <- logitmfx(highly_rated ~ stars +distance + accommodation_type_cat, data=hotels, atmean=FALSE, robust = TRUE)
+print(logit_marg)
+
+# C. Probit
+probit <- glm(highly_rated ~ stars + distance + accommodation_type_cat, data=hotels,  family=binomial(link="probit"))
+summary(probit)
+
+probit_marg <- probitmfx(formula = highly_rated ~ stars + distance + accommodation_type_cat, data=hotels, atmean = FALSE, robust = TRUE)
+print(probit_marg)
+
+```
+
+
+```{r echo = F, messages = F, warnings = F}
+
+# Model summary 
+msummary(list('LPM' = lpm, 
+              'Logit coeffs' = logit, 
+              'Logit marginals' = logit_marg, 
+              'Probit coeffs' = probit, 
+              'Probit marginals' = probit_marg),
+         fmt="%.3f",
+         gof_omit = 'DF|Deviance|Log.Lik.|F|R2 Adj.|AIC|BIC|R2|PseudoR2|Std.Errors',
+         stars=c('*' = .05, '**' = .01),
+         coef_map = c('(Intercept)' = 'Constant',
+                      'stars' = 'Stars',
+                      'distance' = 'Distance',
+                      #'accommodation_type_catHotel' = 'Hotel', 
+                      'accommodation_type_catApartment' = 'Apartment',
+                      'accommodation_type_catPension and B&B' = 'Pension and B&B',          
+                      'accommodation_type_catHostel' = 'Hostel' ,
+                      'offer'
+                      ),
+         title = 'Probability models')
+
+rm(probit_marg, logit_marg)
+
+```
+
+
+In the LPM model the predicted coefficient of stars is 0.229 and statistically significant at 1%. Comparing hotels with the same distance from the city center and with the of the same type, hotels with one additional star are 22.9 percentage point more likely to be highly rated. Distance, has positive coefficient suggesting that, conditional on other characteristics, hotels 1 kilometer farther away from the city center are 2.7 percentage point more likely to have high rating. In case of the accommodation types, the control group is the hotels. We can see that Apartments are 7.7, pensions are 4.4 and hostels are 19.5 percentage points less likely to have 4 or above ratings than hotels conditional on the other characteristics, however these coefficients are statistically not significant. 
+
+
+The marginal differences from the logit and probit models are almost the same as the corresponding coefficients from the LPM model. If we look at the number of stars, we can see that hotels located at the same distance from the center and of the same type have 21.2 and 21.5 percentage points higher chance to be highly rated if they have one star higher hotel rating. The coefficients and the robust standard errors of the distance from the city center are technically the same as from the LPM model, but similarly, they are statistically not significant. The logit and probit models indicate that Apartments are 9.7 and 9.2 percentage point less likely to have high hotel ratings than hotels, conditional on the other attributes of the hotels. Overall, we can conclude that the three estimated models give very similar results.
+
+
+```{r echo = F, include = F, messages = F, warnings = F}
+
+# Predicted values 
+
+# LPM predicted probabilities
+hotels$pred_lpm <- predict(lpm, hotels)
+
+# Logit predicted probabilities 
+hotels$pred_prob_logit <- predict.glm(logit, newdata = hotels, type="response") 
+
+# Probit predicted probabilities
+hotels$pred_prob_probit <- predict.glm(probit, newdata = hotels, type="response") 
+
+```
+
+Let's also compare the goodness of fit measures of the three pobability models.
+
+```{r echo = F, include = F}
+
+# Add summary table with R2, Pseudo R2, Brier score, Log-loss
+
+gof <- function(predicted, actual, model) {
+  
+  R2 <- round( 1 - ( sum((predicted - actual) ^ 2) / sum((actual - mean(actual)) ^ 2) ) , 4)
+  Pseodo_R2 <- ifelse(is_empty(1 - model$deviance / model$null.deviance), 'Na', round(  1 - model$deviance / model$null.deviance, 4) ) 
+  Brier_score <- round( mean((predicted - actual)^2, na.rm = T) , 4)
+  Log_loss <- round( LogLoss(predicted, actual) , 4)*(-1)
+  
+  return(cbind(R2, Pseodo_R2, Brier_score, Log_loss))
+
+}
+
+lpm_gof <- gof(hotels$pred_lpm, hotels$highly_rated, lpm)
+logit_gof <- gof(hotels$pred_prob_logit, hotels$highly_rated, logit)
+probit_gof <- gof(hotels$pred_prob_probit,hotels$highly_rated, probit)
+
+gof_summary <- data.frame("Statistic" = c("R-squared", "Pseudo R-squared", "Brier score", "Log-loss"), 
+                "LPM" = c(lpm_gof), 
+                "Logit" = c(logit_gof), 
+                "Probit" = c(probit_gof)) 
+
+rm(lpm_gof, logit_gof, probit_gof)
+
+```
+
+
+```{=latex}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccc}
+\multicolumn{4}{c}{Table 2: Statistics of goodness of fit for the probability predictions} \\ \midrule
+Statistic                       & LPM               & Logit             & Probit            \\ \midrule
+R-squared                       & 0.2504            & 0.2532            & 0.2533            \\
+Pseudo R-squared                & Na                & 0.2109            & 0.2120            \\
+Brier score                     & 0.1682            & 0.1676            & 0.1675            \\
+Log-loss                        & 0.5033            & 0.5058            & 0.5051            \\ \midrule
+\end{tabular}
+\end{table}
+
+   
+```
+
+As expected, the performance of the models is very similar. The predictions of the logit and the probit models are slightly better in case of the Brier score and little bit worse in case of the Log-loss compared to the LPM model, but the differences are not considerable. Hence, we can conclude that using the LPM model to uncover the associations is just as fine as the logit or the probit models, but if we care about prediction we can choose to use the latter two models instead.
+
+
+### Predictions
+
+The following figure plots the predictions from the logit and probit models on the y axis against the predictions from the LPM model on the x axis. We can clearly see that the logit and probit predictions move closely together. If we compare them to the LPM model, we can see that the scatterplot of the predicted values slighly vary from the LPM predictions which is more visible in the tails.
+
+```{r echo = F, fig.align='center', fig.height=3, fig.width=4.5, warning=F, message=F}
+
+# Predictions from the 3 models 
+ggplot(data = hotels) +
+  geom_point(aes(x=pred_lpm, y=pred_prob_probit, color="Probit"), size=1,  shape=16) +
+  geom_point(aes(x=pred_lpm, y=pred_prob_logit,  color="Logit"), size=1,  shape=16) +
+  geom_line(aes(x=pred_lpm, y=pred_lpm,    color="45 degree line"), size=1) +
+  labs(x = "Predicted probability of being highly rated (LPM)", y="Predicted probability", title = "Predicted probabilities from three different models")+
+  scale_y_continuous(expand = c(0.00,0.0), limits = c(0,1), breaks = seq(0,1,0.1)) +
+  scale_x_continuous(expand = c(0.00,0.0), limits = c(0,1), breaks = seq(0,1,0.1)) +
+  scale_color_manual(name = "", values=c("black", "#2c7fb8", "#2ca25f")) +
+  theme_bw()+
+  theme(legend.position=c(0.6,0.1),
+        legend.direction = "horizontal",
+        legend.text = element_text(size = 9),
+        plot.title = element_text(size = 10L,  face = "bold", hjust = 0.5),
+        axis.title.x = element_text(face = "bold", size = 9),
+        axis.title.y = element_text(face = "bold", size = 9))
+
+```
+
+
+Finally, let's take a quick look at the predicted probabilities of being highly rated by the actual rating categories in the dataset.
+
+
+```{r echo = F, fig.align='center', fig.height=3, fig.width=6.5, warning=F, message=F}
+
+# LPM - by outcome 
+#min(hotels$pred_lpm)
+#max(hotels$pred_lpm)
+p1 <- ggplot(data = hotels ,aes(x=pred_lpm)) + 
+  geom_histogram(data=subset(hotels[hotels$highly_rated == 1, ]), 
+                 aes(fill=as.factor(highly_rated), color=as.factor(highly_rated), y = (..count..)/sum(..count..)*100),
+                 binwidth = 0.05, boundary=0, alpha=0.9) +
+  geom_histogram(data=subset(hotels[hotels$highly_rated == 0, ]), 
+                 aes(fill=as.factor(highly_rated), color=as.factor(highly_rated), y = (..count..)/sum(..count..)*100),
+                 binwidth = 0.05, boundary=0, alpha=0.6)+
+  scale_fill_manual(name="", values=c("0" = "#2c7fb8", "1" = "#2ca25f"),labels=c("Not highly rated","Highly rated")) +
+  scale_color_manual(name="", values=c("0" = "#2c7fb8", "1" = "#2ca25f"),labels=c("Not highly rated","Highly rated")) +
+  labs(y = "Percent", x = "Fitted values", title = "Predicted probabilities from LPM") +
+  scale_x_continuous(limits = c(0,1.2), breaks = seq(0,1.2,0.2)) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        plot.title = element_text(size = 10L,  face = "bold", hjust = 0.5),
+        axis.title.x = element_text(face = "bold", size = 9),
+        axis.title.y = element_text(face = "bold", size = 9))
+
+
+p2 <- ggplot(data = hotels ,aes(x=pred_prob_logit)) + 
+  geom_histogram(data=subset(hotels[hotels$highly_rated == 1, ]), 
+                 aes(fill=as.factor(highly_rated), color=as.factor(highly_rated), y = (..count..)/sum(..count..)*100),
+                 binwidth = 0.05, boundary=0, alpha=0.9) +
+  geom_histogram(data=subset(hotels[hotels$highly_rated == 0, ]), 
+                 aes(fill=as.factor(highly_rated), color=as.factor(highly_rated), y = (..count..)/sum(..count..)*100),
+                 binwidth = 0.05, boundary=0, alpha=0.6)+
+  scale_fill_manual(name="", values=c("0" = "#2c7fb8", "1" = "#2ca25f"),labels=c("Not highly rated","Highly rated")) +
+  scale_color_manual(name="", values=c("0" = "#2c7fb8", "1" = "#2ca25f"),labels=c("Not highly rated","Highly rated")) +
+  labs(y = "Percent", x = "Fitted values", title = "Predicted probabilities from Logit") +
+  scale_x_continuous(limits = c(0,1), breaks = seq(0,1,0.2)) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        plot.title = element_text(size = 10L,  face = "bold", hjust = 0.5),
+        axis.title.x = element_text(face = "bold", size = 9),
+        axis.title.y = element_text(face = "bold", size = 9))
+
+grid.arrange(p1,p2, ncol=2)
+
+
+```
+
+The LPM model has predictions out of the 0-1 range. The histograms suggest the in case of both models the distribution of the fitted probabilities among hotels with high ratings are are shifted towards the higher edge of the probability range. However the distributions are overlapping which suggests that the predictive power of the two models are not that strong. 
+
+### Summary 
+
+To be added.
+
 
 
 ```{r, echo = F, include = F, messages = F, warnings = F}
@@ -133,144 +345,3 @@ ggplot(hotels) +
   facet_wrap(vars(highly_rated))
 
 ```
-
-
-
-### Regression analysis
-
-```{r, echo = F, include = F}
-
-# Probability models
-
-# A. LPM
-lpm <- lm_robust(highly_rated ~ distance + stars + accommodation_type_cat + offer, data=hotels, se_type = "HC1")
-summary( lpm )
-
-# B. Logit
-logit <- glm(highly_rated ~ distance + stars + accommodation_type_cat, data=hotels, family='binomial'(link="logit"))
-summary(logit)
-
-logit_marg <- logitmfx(highly_rated ~ distance + stars + accommodation_type_cat, data=hotels, atmean=FALSE, robust = TRUE)
-print(logit_marg)
-
-# C. Probit
-probit <- glm(highly_rated ~ distance +  stars + accommodation_type_cat, data=hotels,  family=binomial(link="probit"))
-summary(probit)
-
-probit_marg <- probitmfx(formula = highly_rated ~ distance + stars + accommodation_type_cat, data=hotels, atmean = FALSE, robust = TRUE)
-print(probit_marg)
-
-```
-
-
-```{r echo = F, messages = F, warnings = F}
-
-# Model summary 
-msummary(list('LPM' = lpm, 
-              'Logit coeffs' = logit, 
-              'Logit marginals' = logit_marg, 
-              'Probit coeffs' = probit, 
-              'Probit marginals' = probit_marg),
-         fmt="%.3f",
-         gof_omit = 'DF|Deviance|Log.Lik.|F|R2 Adj.|AIC|BIC|R2|PseudoR2|Std.Errors',
-         stars=c('*' = .05, '**' = .01),
-         coef_map = c('(Intercept)' = 'Constant',
-                      'distance' = 'Distance',
-                      'stars' = 'Stars',
-                      #'accommodation_type_catHotel' = 'Hotel', 
-                      'accommodation_type_catApartment' = 'Apartment',
-                      'accommodation_type_catPension and B&B' = 'Pension and B&B',          
-                      'accommodation_type_catHostel' = 'Hostel' ,
-                      'offer'
-                      ),
-         title = 'Probability models')
-
-```
-```{r echo = F, include = F, messages = F, warnings = F}
-
-# Predicted values 
-
-# LPM predicted probabilities
-hotels$pred_lpm <- predict(lpm, hotels)
-
-# Logit predicted probabilities 
-hotels$pred_prob_logit <- predict.glm(logit, newdata = hotels, type="response") 
-
-# Probit predicted probabilities
-hotels$pred_prob_probit <- predict.glm(probit, newdata = hotels, type="response") 
-```
-
-
-```{r echo = F, include = F}
-
-# Add summary table with R2, Pseudo R2, Brier score, Log-loss
-
-#R2
-lpm_r2 <- lpm[['r.squared']]
-logit_r2 <- 1 - ( sum((hotels$pred_prob_logit - hotels$highly_rated) ^ 2) / sum((hotels$highly_rated - mean(hotels$highly_rated)) ^ 2) )
-probit_r2 <- 1 - ( sum((hotels$pred_prob_probit - hotels$highly_rated) ^ 2) / sum((hotels$highly_rated - mean(hotels$highly_rated)) ^ 2) )
-
-
-# Pseudo R2
-logit_pseudoR2 <-  1 - logit$deviance / logit$null.deviance
-probit_pseudoR2 <- 1 - probit$deviance / probit$null.deviance
-
-# Brier score
-logit_brier <- mean((hotels$pred_prob_logit - hotels$highly_rated)^2, na.rm = T)
-probit_brier <- mean((hotels$pred_prob_probit - hotels$highly_rated)^2, na.rm = T)
-lpm_brier <- mean((hotels$pred_lpm - hotels$highly_rated)^2, na.rm = T)
-
-# Log-loss
-logloss_logit <- LogLoss(y_pred = hotels$pred_prob_logit, y_true = hotels$highly_rated)
-logloss_probit <- LogLoss(y_pred = hotels$pred_prob_probit, y_true = hotels$highly_rated)
-logloss_lpm <- LogLoss(y_pred = hotels$pred_lpm, y_true = hotels$highly_rated)
-
-
-stats <- data.frame(rbind(
-c("R-squared", lpm_r2, logit_r2, probit_r2),
-c("Pseudo R-squared", "-", logit_pseudoR2, probit_pseudoR2),
-c("Brier score", lpm_brier, logit_brier, probit_brier),
-c("Log-loss", logloss_lpm, logloss_logit, logloss_probit)
-))
-
-```
-
-
-### Predictions
-
-
-```{r echo = F, messages = F, warnings = F}
-
-# LPM - by outcome - weird...
-ggplot(data = hotels ,aes(x=pred_lpm)) + 
-  geom_density(data=subset(hotels[hotels$highly_rated == 1, ]), 
-                 aes(fill=as.factor(highly_rated), color=as.factor(highly_rated), y = (..count..)/sum(..count..)*100),
-                 binwidth = 0.05, boundary=0, alpha=0.8) +
-  geom_density(data=subset(hotels[hotels$highly_rated == 0, ]), 
-                 aes(fill=as.factor(highly_rated), color=as.factor(highly_rated), y = (..count..)/sum(..count..)*100),
-                 binwidth = 0.05, boundary=0, alpha=0.8)+
-  scale_fill_manual(name="", values=c("0" = "red", "1" = "blue"),labels=c("Not highly rated","Highly rated")) +
-  scale_color_manual(name="", values=c("0" = "red", "1" = "blue"),labels=c("Not highly rated","Highly rated")) +
-  ylab("Percent") +
-  xlab("Fitted values") +
-  scale_x_continuous(expand=c(0.01,0.01) ,limits = c(0,1), breaks = seq(0,1,0.2)) +
-  #scale_y_continuous(expand=c(0.00,0.00) ,limits = c(0,50), breaks = seq(0,50,20)) +
-  theme_bw() +
-  theme(legend.position = "bottom")
-
-
-ggplot(data = hotels ,aes(x=pred_lpm)) + 
-  geom_histogram(aes( y = (..count..)/sum(..count..)*100),binwidth = 0.05, boundary=0, alpha=0.8, fill = "blue") +
-  theme_bw() +
-  ylab("Percent") +
-  xlab("Fitted values")
-
-```
-
-
-### Summary 
-
-
-
-
-
