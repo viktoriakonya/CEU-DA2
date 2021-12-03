@@ -53,12 +53,11 @@ rm(hotels_europe_features)
 
 ### Introduction
 
-In this report, I examine the important predictors of high user ratings of hotels using data of different kind of accommodations in Barcelona. My goal is to uncover how high ratings of the hotels are connected to other features of the hotels such as the distance from the city center, the number of stars and the type of the accommodation. 
+In this report, I examine the important predictors of high user ratings using data of different type of accommodations in Barcelona. My goal is to uncover how high ratings of the hotels are connected to other features of the hotels such as the distance from the city center, the number of stars and the type of the accommodation. 
 
 ### Descriprive statistics
 
-The outcome variable of our analysis is the rating class of the hotels. Hotels with 4 or higher average ratings were classified as 'highly rated' and hotels with below this rating were classified as 'not highly rated' hotels.
-The below summary table summarizes the most important features of the variables of our interest by the rating category.
+The outcome variable of our analysis is the rating class of the hotels. Hotels with 4 or higher average ratings were classified as 'highly rated' and hotels with below this rating were classified as 'not highly rated' hotels. The below summary table summarizes the most important features of the variables of our interest by the rating category.
 
 ```{r echo = F}
 
@@ -83,7 +82,7 @@ datasummary(  ( Heading("Rating category") *
 
 
 ```
-Almost 60% of the hotels have 4 or higher ratings. We can see that the average distance from the city center is about 0.1 kilometer higher in case of the highly rated hotels, and the standard deviations are about the same. Hotel stars range between 1 and 5 stars in both rating groups, however the median number of stars is 4 in case of the highly rated, and 3 in case of the hotels with lower ratings. We can also see that the number rating reviews range in a wide scale including observations with very few ratings. For the later analysis, I excluded hotels with less than 50 reviews to avoid the noise by ratings with few reviews.I also kept observations of all type of accommodation in the dataset as restricting the analysis to hotels only would narrow down the comparison by the number of stars.
+Almost 60% of the hotels have 4 or higher ratings. We can see that the average distance from the city center is about 0.1 kilometer higher in case of the highly rated hotels, the standard deviations are about the same. The number of hotel stars range between 1 and 5 stars in both rating groups, however the median number of stars is 4 in case of the highly rated, and 3 in case of the hotels with lower ratings. We can also see that the number of rating reviews range in a wide scale including observations with very few ratings. For the subsequent analysis, I excluded hotels with less than 50 reviews to avoid the noise caused by ratings with few reviews.I also kept observations of all type of accommodation in the dataset.
 
 ```{r echo = F, include = F}
 
@@ -104,7 +103,7 @@ table(hotels$accommodation_type)
 
 ### Regression analysis
 
-In order to analyze the determinants of high rating, I estimated LPM, logit and probit models for the probability of being highly rated. The left hand side variable the binary variable showing if the hotel had 4 or above rating, and the predictors are the number of stars, the distance from the city center and the type of the accommodation. Accommodation types with very few observations were grouped together in order to create meaningful categories.
+In order to analyze the determinants of high rating, I estimated LPM, logit and probit models for the probability of being highly rated. The left hand side variable is the binary variable showing if the hotel had 4 or above rating, and the predictors are the number of stars, the distance from the city center and the type of the accommodation. Accommodation types with very few observations were grouped together in order to create meaningful categories.
 
 ```{r, echo = F, include = F}
 
@@ -310,38 +309,3 @@ The LPM model has predictions out of the 0-1 range. The histograms suggest the i
 
 To be added.
 
-
-
-```{r, echo = F, include = F, messages = F, warnings = F}
-
-# Accomodation type
-
-ggplot(hotels) +
-  aes(x = highly_rated) +
-  geom_bar( fill = "#112446") +
-  theme_minimal() +
-  facet_wrap(vars(accommodation_type))
-
-table(hotels$accommodation_type)
-
-
-# # of stars
-
-ggplot(hotels) +
-  aes(x = highly_rated) +
-  geom_bar(fill = "#112446") +
-  theme_minimal() +
-  facet_wrap(vars(stars))
-
-table(hotels$stars)
-
-
-# distance
-
-ggplot(hotels) +
-  aes(x = distance) +
-  geom_histogram(bins = 30L, fill = "#112446") +
-  theme_minimal() +
-  facet_wrap(vars(highly_rated))
-
-```
