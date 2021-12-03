@@ -53,11 +53,11 @@ rm(hotels_europe_features)
 
 ### Introduction
 
-In this report, I examine the important predictors of high user ratings using data of different type of accommodations in Barcelona. My goal is to uncover how high ratings of the hotels are connected to other features of the hotels such as the distance from the city center, the number of stars and the type of the accommodation. 
+In this report, I examine the important predictors of high user ratings using data of different types of accommodations in Barcelona. My goal is to uncover how high ratings of the hotels are connected to other features of the hotels such as the distance from the city center, the number of stars and the type of the accommodation. 
 
-### Descriprive statistics
+### Descriptive statistics
 
-The outcome variable of our analysis is the rating class of the hotels. Hotels with 4 or higher average ratings were classified as 'highly rated' and hotels with below this rating were classified as 'not highly rated' hotels. The below summary table summarizes the most important features of the variables of our interest by the rating category.
+The outcome variable of our analysis is the rating class of the hotels. Hotels with an average rating of 4 or higher were classified as 'highly rated' and those below this rating as 'not highly rated'. The below table summarizes the most important features of the variables of our interest by the rating category.
 
 ```{r echo = F}
 
@@ -82,7 +82,7 @@ datasummary(  ( Heading("Rating category") *
 
 
 ```
-Almost 60% of the hotels have 4 or higher ratings. We can see that the average distance from the city center is about 0.1 kilometer higher in case of the highly rated hotels, the standard deviations are about the same. The number of hotel stars range between 1 and 5 stars in both rating groups, however the median number of stars is 4 in case of the highly rated, and 3 in case of the hotels with lower ratings. We can also see that the number of rating reviews range in a wide scale including observations with very few ratings. For the subsequent analysis, I excluded hotels with less than 50 reviews to avoid the noise caused by ratings with few reviews.I also kept observations of all type of accommodation in the dataset.
+Almost 60% of the hotels have 4 or higher ratings. We can see that the average distance from the city center is about 0.1 kilometer higher in case of the highly rated hotels. The number of hotel stars range between 1 and 5 stars in both rating groups, however the median number of stars is 4 in case of the highly rated, and 3 in case of the hotels with lower ratings. We can also see that the number of rating reviews range in a wide scale including observations with very few ratings. For the subsequent analysis, I excluded hotels with less than 50 reviews to avoid this noise. I also kept observations of all types of accommodation in the dataset. Note that I will use hotels and accommodation interchangeably in the descriptions.
 
 ```{r echo = F, include = F}
 
@@ -103,7 +103,7 @@ table(hotels$accommodation_type)
 
 ### Regression analysis
 
-In order to analyze the determinants of high rating, I estimated LPM, logit and probit models for the probability of being highly rated. The left hand side variable is the binary variable showing if the hotel had 4 or above rating, and the predictors are the number of stars, the distance from the city center and the type of the accommodation. Accommodation types with very few observations were grouped together in order to create meaningful categories.
+In order to analyze the predictors of high ratings, I used LPM, logit and probit models to estimate the probability of being highly rated. The left hand side variable is the binary variable showing if the hotel had 4 or above rating, and the predictors are the number of stars, the distance from the city center and the type of the accommodation. Accommodation types with very few observations were grouped together in order to create meaningful categories.
 
 ```{r, echo = F, include = F}
 
@@ -157,10 +157,10 @@ rm(probit_marg, logit_marg)
 ```
 
 
-In the LPM model the predicted coefficient of stars is 0.229 and statistically significant at 1%. Comparing hotels with the same distance from the city center and with the of the same type, hotels with one additional star are 22.9 percentage point more likely to be highly rated. Distance, has positive coefficient suggesting that, conditional on other characteristics, hotels 1 kilometer farther away from the city center are 2.7 percentage point more likely to have high rating. In case of the accommodation types, the control group is the hotels. We can see that Apartments are 7.7, pensions are 4.4 and hostels are 19.5 percentage points less likely to have 4 or above ratings than hotels conditional on the other characteristics, however these coefficients are statistically not significant. 
+In the LPM model the predicted coefficient of stars is 0.23 and statistically significant at 1%. Comparing hotels with the same distance from the city center and of the same type, hotels with one additional star are 23 percentage point more likely to be highly rated. Distance has positive coefficient suggesting that, conditional on other characteristics, hotels one kilometer farther away from the city center are 2.7 percentage point more likely to have high ratings. In case of the accommodation types, the control group is the hotels. We can see that apartments are 7.7, pensions are 3.7 and hostels are 9 percentage points less likely to have 4 or above ratings than hotels conditional on the other characteristics, however these coefficients are statistically not significant. 
 
 
-The marginal differences from the logit and probit models are almost the same as the corresponding coefficients from the LPM model. If we look at the number of stars, we can see that hotels located at the same distance from the center and of the same type have 21.2 and 21.5 percentage points higher chance to be highly rated if they have one star higher hotel rating. The coefficients and the robust standard errors of the distance from the city center are technically the same as from the LPM model, but similarly, they are statistically not significant. The logit and probit models indicate that Apartments are 9.7 and 9.2 percentage point less likely to have high hotel ratings than hotels, conditional on the other attributes of the hotels. Overall, we can conclude that the three estimated models give very similar results.
+The marginal differences from the logit and probit models are almost the same and are very similar to the corresponding coefficients from the LPM model. If we look at the number of stars, we can see that hotels located at the same distance from the center and of the same type have 21.3 and 21.6 percentage points higher chance to be highly rated if they have one star higher hotel rating. The coefficients and the robust standard errors of the distance are technically the same as from the LPM model and similarly, they are statistically not significant. The logit and probit models indicate that apartments are 9.7 and 9.3 percentage point less likely to have high hotel ratings than hotels, conditional on the other attributes of the hotels and this difference is statistically significant. Overall, we can conclude that the three estimated models give very similar results.
 
 
 ```{r echo = F, include = F, messages = F, warnings = F}
@@ -178,7 +178,7 @@ hotels$pred_prob_probit <- predict.glm(probit, newdata = hotels, type="response"
 
 ```
 
-Let's also compare the goodness of fit measures of the three pobability models.
+Let's also compare the goodness of fit measures of the three probability models.
 
 ```{r echo = F, include = F}
 
@@ -214,24 +214,24 @@ rm(lpm_gof, logit_gof, probit_gof)
 \begin{table}[H]
 \centering
 \begin{tabular}{lccc}
-\multicolumn{4}{c}{Table 2: Statistics of goodness of fit for the probability predictions} \\ \midrule
+\multicolumn{4}{c}{Table 3: Statistics of goodness of fit for the probability predictions} \\ \midrule
 Statistic                       & LPM               & Logit             & Probit            \\ \midrule
 R-squared                       & 0.2504            & 0.2532            & 0.2533            \\
 Pseudo R-squared                & Na                & 0.2109            & 0.2120            \\
 Brier score                     & 0.1682            & 0.1676            & 0.1675            \\
-Log-loss                        & 0.5033            & 0.5058            & 0.5051            \\ \midrule
+Log-loss                        & -0.5033           & -0.5058           & -0.5051           \\ \midrule
 \end{tabular}
 \end{table}
 
    
 ```
 
-As expected, the performance of the models is very similar. The predictions of the logit and the probit models are slightly better in case of the Brier score and little bit worse in case of the Log-loss compared to the LPM model, but the differences are not considerable. Hence, we can conclude that using the LPM model to uncover the associations is just as fine as the logit or the probit models, but if we care about prediction we can choose to use the latter two models instead.
+As expected, the performance of the models is very similar. The predictions of the logit and the probit models are slightly better in case of the Brier score and a little bit worse in case of the Log-loss compared to the LPM model, but the differences are not considerable. 
 
 
 ### Predictions
 
-The following figure plots the predictions from the logit and probit models on the y axis against the predictions from the LPM model on the x axis. We can clearly see that the logit and probit predictions move closely together. If we compare them to the LPM model, we can see that the scatterplot of the predicted values slighly vary from the LPM predictions which is more visible in the tails.
+The following figure plots the predictions from the logit and probit models on the y axis against the predictions from the LPM model on the x axis. We can clearly see that the logit and probit predictions move closely together. If we compare them to the LPM model predictions, we can see that the scatterplot of the predicted values slightly vary from the LPM predictions which is more visible in the tails.
 
 ```{r echo = F, fig.align='center', fig.height=3, fig.width=4.5, warning=F, message=F}
 
@@ -255,7 +255,7 @@ ggplot(data = hotels) +
 ```
 
 
-Finally, let's take a quick look at the predicted probabilities of being highly rated by the actual rating categories in the dataset.
+Finally, let's take a quick look at the predicted probabilities of being highly rated by the actual rating categories.
 
 
 ```{r echo = F, fig.align='center', fig.height=3, fig.width=6.5, warning=F, message=F}
@@ -303,9 +303,9 @@ grid.arrange(p1,p2, ncol=2)
 
 ```
 
-The LPM model has predictions out of the 0-1 range. The histograms suggest the in case of both models the distribution of the fitted probabilities among hotels with high ratings are are shifted towards the higher edge of the probability range. However the distributions are overlapping which suggests that the predictive power of the two models are not that strong. 
+The LPM model has predictions out of the 0-1 range for 5.3% of the observations. The histograms suggest that in case of both models the distribution of the fitted probabilities among hotels with high ratings are are shifted towards the higher edge of the probability range. However, the distributions are overlapping which suggests that the predictive power of the two models are not that strong. 
 
 ### Summary 
 
-To be added.
+To sum up, our analysis showed that hotels with more stars are more likely to be highly rated after conditioning on the location and the accommodation type. Moreover, the marginal differences in the logit and probit models produced very similar results to the simplest linear probability model. We can conclude that using the LPM model to uncover the associations is just as fine as the more complicated logit or the probit models, but if we care about prediction we might choose to use the latter two models instead.
 
