@@ -4,7 +4,7 @@ header-includes: |
   \usepackage{titling}
   \usepackage{float}
   \setlength{\droptitle}{-6em} 
-title: "Report on hotel ratings"
+title: "Report on accommodation ratings"
 author:  "Viktória Kónya"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 geometry: margin=2cm
@@ -54,11 +54,11 @@ rm(hotels_europe_features)
 
 ### Introduction
 
-In this report, I examine the important predictors of high user ratings using data of different types of accommodations in Barcelona. My goal is to uncover how high ratings of the hotels are connected to other features of the hotels such as the distance from the city center, the number of stars and the type of the accommodation. 
+In this report, I examine the important predictors of high user ratings using data of different types of accommodations in Barcelona. My goal is to uncover how high ratings of the accommodations are connected to other features such as the distance from the city center, the number of stars and the type of the accommodation. 
 
 ### Descriptive statistics
 
-The outcome variable of our analysis is the rating class of the hotels. Hotels with an average rating of 4 or higher were classified as 'highly rated' and those below this rating as 'not highly rated'. The below table summarizes the most important features of the variables of our interest by the rating category.
+The outcome variable of our analysis is the rating class of the accommodation. Accommodations with an average rating of 4 or higher were classified as 'highly rated' and those below this rating as 'not highly rated'. The below table summarizes the most important features of the variables of our interest by the rating category.
 
 ```{r echo = F}
 
@@ -83,7 +83,7 @@ datasummary(  ( Heading("Rating category") *
 
 
 ```
-Almost 60% of the hotels have 4 or higher ratings. We can see that the average distance from the city center is about 0.1 kilometer higher in case of the highly rated hotels. The number of hotel stars range between 1 and 5 stars in both rating groups, however the median number of stars is 4 in case of the highly rated, and 3 in case of the hotels with lower ratings. We can also see that the number of rating reviews range in a wide scale including observations with very few ratings. For the subsequent analysis, I excluded hotels with less than 50 reviews to avoid this noise. I also kept observations of all types of accommodation in the dataset. Note that I will use hotels and accommodation interchangeably in the descriptions.
+Almost 60% of the accommodations have 4 or higher ratings. We can see that the average distance from the city center is about 0.1 kilometer higher in case of the highly rated places. The number of stars range between 1 and 5 stars in both rating groups, however the median number of stars is 4 in case of the highly rated, and 3 in case of the accommodations with lower ratings. We can also see that the number of rating reviews range in a wide scale including observations with very few ratings. For the subsequent analysis, I excluded accommodations with less than 50 reviews to avoid this noise. 
 
 ```{r echo = F, include = F}
 
@@ -104,7 +104,7 @@ table(hotels$accommodation_type)
 
 ### Regression analysis
 
-In order to analyze the predictors of high ratings, I used LPM, logit and probit models to estimate the probability of being highly rated. The left hand side variable is the binary variable showing if the hotel had 4 or above rating, and the predictors are the number of stars, the distance from the city center and the type of the accommodation. Accommodation types with very few observations were grouped together in order to create meaningful categories.
+In order to analyze the predictors of high ratings, I used LPM, logit and probit models to estimate the probability of being highly rated. The left hand side variable is the binary variable showing if the accommodation had 4 or above rating, and the predictors are the number of stars, the distance from the city center and the type of the accommodation. Accommodation types with very few observations were grouped together in order to create meaningful categories.
 
 ```{r, echo = F, include = F}
 
@@ -158,10 +158,10 @@ rm(probit_marg, logit_marg)
 ```
 
 
-In the LPM model the predicted coefficient of stars is 0.23 and statistically significant at 1%. Comparing hotels with the same distance from the city center and of the same type, hotels with one additional star are 23 percentage point more likely to be highly rated. Distance has positive coefficient suggesting that, conditional on other characteristics, hotels one kilometer farther away from the city center are 2.7 percentage point more likely to have high ratings. In case of the accommodation types, the control group is the hotels. We can see that apartments are 7.7, pensions are 3.7 and hostels are 9 percentage points less likely to have 4 or above ratings than hotels conditional on the other characteristics, however these coefficients are statistically not significant. 
+In the LPM model the predicted coefficient of stars is 0.23 and statistically significant at 1%. Comparing accommodations with the same distance from the city center and of the same type, those with one additional star are 23 percentage point more likely to be highly rated. Distance has positive coefficient suggesting that, conditional on other characteristics, accommodations one kilometer farther away from the city center are 2.7 percentage point more likely to have high ratings. In case of the accommodation types, the control group is the hotels. We can see that apartments are 7.7, pensions are 3.7 and hostels are 9 percentage points less likely to have 4 or above ratings than hotels conditional on the other characteristics, however these coefficients are statistically not significant. 
 
 
-The marginal differences from the logit and probit models are almost the same and are very similar to the corresponding coefficients from the LPM model. If we look at the number of stars, we can see that hotels located at the same distance from the center and of the same type have 21.3 and 21.6 percentage points higher chance to be highly rated if they have one star higher hotel rating. The coefficients and the robust standard errors of the distance are technically the same as from the LPM model and similarly, they are statistically not significant. The logit and probit models indicate that apartments are 9.7 and 9.3 percentage point less likely to have high hotel ratings than hotels, conditional on the other attributes of the hotels and this difference is statistically significant. Overall, we can conclude that the three estimated models give very similar results.
+The marginal differences from the logit and probit models are almost the same and are very similar to the corresponding coefficients from the LPM model. If we look at the number of stars, we can see that accommodations located at the same distance from the center and of the same type have 21.3 and 21.6 percentage points higher chance to be highly rated if they have one star higher hotel rating. The coefficients and the robust standard errors of the distance are technically the same as from the LPM model and similarly, they are statistically not significant. The logit and probit models indicate that apartments are 9.7 and 9.3 percentage point less likely to have high hotel ratings than hotels, conditional on the other attributes of the accommodation and this difference is statistically significant. Overall, we can conclude that the three estimated models give very similar results.
 
 
 ```{r echo = F, include = F, messages = F, warnings = F}
@@ -305,9 +305,9 @@ grid.arrange(p1,p2, ncol=2)
 
 ```
 
-The LPM model has predictions out of the 0-1 range for 5.3% of the observations. The histograms suggest that in case of both models the distribution of the fitted probabilities among hotels with high ratings are are shifted towards the higher edge of the probability range. However, the distributions are overlapping which suggests that the predictive power of the two models are not that strong. 
+The LPM model has predictions out of the 0-1 range for 5.3% of the observations. The histograms suggest that in case of both models the distribution of the fitted probabilities among ccommodations with high ratings are are shifted towards the higher edge of the probability range. However, the distributions are overlapping which suggests that the predictive power of the two models are not that strong. 
 
 ### Summary 
 
-To sum up, our analysis showed that hotels with more stars are more likely to be highly rated after conditioning on the location and the accommodation type. Moreover, the marginal differences in the logit and probit models produced very similar results to the simplest linear probability model. We can conclude that using the LPM model to uncover the associations is just as fine as the more complicated logit or probit models, but if we care about prediction we might choose to use the latter two models instead.
+To sum up, our analysis showed that accommodations with more stars are more likely to be highly rated after conditioning on the location and the accommodation type. Moreover, the marginal differences in the logit and probit models produced very similar results to the simplest linear probability model. We can conclude that using the LPM model to uncover the associations is just as fine as the more complicated logit or probit models, but if we care about prediction we might choose to use the latter two models instead.
 
