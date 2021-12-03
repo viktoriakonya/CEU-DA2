@@ -6,6 +6,7 @@ header-includes: |
   \setlength{\droptitle}{-6em} 
 title: "Report on hotel ratings"
 author:  "Viktória Kónya"
+date: "`r format(Sys.time(), '%d %B %Y')`"
 geometry: margin=2cm
 fontsize: 9pt
 ---
@@ -215,11 +216,12 @@ rm(lpm_gof, logit_gof, probit_gof)
 \centering
 \begin{tabular}{lccc}
 \multicolumn{4}{c}{Table 3: Statistics of goodness of fit for the probability predictions} \\ \midrule
-Statistic                       & LPM               & Logit             & Probit            \\ \midrule
-R-squared                       & 0.2504            & 0.2532            & 0.2533            \\
-Pseudo R-squared                & Na                & 0.2109            & 0.2120            \\
-Brier score                     & 0.1682            & 0.1676            & 0.1675            \\
-Log-loss                        & -0.5033           & -0.5058           & -0.5051           \\ \midrule
+Statistic                       & LPM                       & Logit                   & Probit            \\ \midrule
+R-squared                       & 0.2504                    & 0.2532                  & 0.2533            \\
+Pseudo R-squared                & Na                        & 0.2109                  & 0.2120            \\
+Brier score                     & 0.1682                    & 0.1676                  & 0.1675            \\
+Log-loss                        & -0.5033                   & -0.5058                 & -0.5051           \\ \midrule
+                                & \multicolumn{1}{l}{}      & \multicolumn{1}{l}{}    & \multicolumn{1}{l}{}   
 \end{tabular}
 \end{table}
 
@@ -307,5 +309,5 @@ The LPM model has predictions out of the 0-1 range for 5.3% of the observations.
 
 ### Summary 
 
-To sum up, our analysis showed that hotels with more stars are more likely to be highly rated after conditioning on the location and the accommodation type. Moreover, the marginal differences in the logit and probit models produced very similar results to the simplest linear probability model. We can conclude that using the LPM model to uncover the associations is just as fine as the more complicated logit or the probit models, but if we care about prediction we might choose to use the latter two models instead.
+To sum up, our analysis showed that hotels with more stars are more likely to be highly rated after conditioning on the location and the accommodation type. Moreover, the marginal differences in the logit and probit models produced very similar results to the simplest linear probability model. We can conclude that using the LPM model to uncover the associations is just as fine as the more complicated logit or probit models, but if we care about prediction we might choose to use the latter two models instead.
 
