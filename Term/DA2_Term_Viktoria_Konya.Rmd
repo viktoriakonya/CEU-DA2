@@ -1,0 +1,934 @@
+---
+output: pdf_document
+header-includes: |
+  \usepackage{titling}
+  \usepackage{float}
+  \setlength{\droptitle}{-6em} 
+title: "Term project"
+author:  "Viktória Kónya"
+geometry: margin=1.8cm
+fontsize: 9pt
+---
+
+```{r dataset-export, echo = F, include = F}
+
+# Dataset export to GitHub repo
+
+# The original dataset was loaded from the 'learningtower' R package and then exported to my GitHub repo in RDS format
+# It is not necessary to run this part of the code
+
+# Clear environment
+#rm(list=ls())
+
+# R package with PISA survey data
+#library(learningtower) 
+
+# Create library for datasets
+#dir.create("data", showWarnings = TRUE)
+
+# Student dataset 2012, 2015, 2018 
+# student_all <- load_student("all")
+# student <- student_all %>% filter(year %in% c("2018", "2015", "2012") & country %in% c('HUN', 'POL', 'SVK', 'CZE', 'AUT', 'ESP', 'GBR','ITA', 'FRA', 'DEU', 'USA'))
+# saveRDS(student, "data/student.rds")
+
+# School dataset
+# data(school) 
+# school <- school %>% filter(year %in% c("2018", "2015", "2012") & country %in% c('HUN', 'POL', 'SVK', 'CZE', 'AUT', 'ESP', 'GBR','ITA', 'FRA', 'DEU', 'USA'))
+# saveRDS(school, "data/school.rds")
+
+# Country code dataset
+# data(countrycode)
+# saveRDS(countrycode, "data/countrycode.rds")
+
+# Remove files
+# rm(list=c("student_all", "student", "school", "countrycode"))
+
+```
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+
+```{r libraries, echo = F, include = F}
+
+# Clear environment
+rm(list=ls())
+
+# Import libraries
+library(kableExtra)
+library(modelsummary)
+library(fixest)
+library(lspline)
+library(reshape2) # correlation matrix
+library(gridExtra) # multiple-plots
+library(grid)
+library(tidyverse)
+# library(lme4) # mixed effects
+
+```
+
+
+```{r functions-viz, echo = F, include = F}
+
+# Create custom functions for visualization
+
+# A. Bin scatters - 2 levels
+bin_scatters <- function( data,  x_var , y_var, x_lab, y_lab, lab_x1, lab_x0){
+
+  data %>%   
+  ggplot() +
+  geom_jitter(aes(x = as.factor({{ x_var }}), y = {{ y_var }}), width = 0.25, color = "#238b45", alpha = 0.6, size = 0.5) +
+  geom_crossbar(data = df %>% group_by({{ x_var }}) %>% dplyr::summarize( avg = mean({{ y_var }})), aes(x = as.factor({{ x_var }}), y = avg, ymin = avg, ymax = avg), size=0.5,col="black", width = 0.4) +
+  scale_y_continuous(limits = c(100, 800), breaks = seq(100, 800, by = 100)) +
+  scale_x_discrete(labels = c(lab_x1, lab_x0, "NA")) +
+  labs(x = x_lab, y = y_lab) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 12L,
+    face = "bold", hjust = 0.5),
+    axis.title.y = element_text(face = "bold"),
+    axis.title.x = element_text(face = "bold"),
+    legend.position = "none"
+ )
+}
+
+
+# B. Bin scatters - multiple levels
+bin_scatters_multi <- function( data,  x_var , y_var, x_lab, y_lab){
+
+  data %>%   
+  ggplot() +
+  geom_jitter(aes(x = as.factor({{ x_var }}), y = {{ y_var }}), width = 0.25, color = "#2ca25f", alpha = 0.6, size = 0.5) +
+  geom_crossbar(data = df %>% group_by({{ x_var }}) %>% dplyr::summarize( avg = mean({{ y_var }}, na.rm = T)), aes(x = as.factor({{ x_var }}), y = avg, ymin = avg, ymax = avg), size=0.5,col="black", width = 0.4) +
+  #scale_x_discrete(labels = c(lab_x1, lab_x2, lab_x3, lab_x4, lab_x5, "NA")) +
+  labs(x = x_lab, y = y_lab) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 12L,
+    face = "bold", hjust = 0.5),
+    axis.title.y = element_text(face = "bold"),
+    axis.title.x = element_text(face = "bold"),
+    legend.position = "none"
+ )
+}
+
+# C. Histograms
+histograms <- function( x_var , x_lab, bin ){
+  n = nrow(df)
+  
+  ggplot( df , aes(x = x_var)) +
+    geom_histogram( binwidth = bin, fill="#238b45", color = 'gray50', na.rm = T) +
+    stat_function(fun = function(x) dnorm(x, mean = mean(x_var, na.rm = T), sd = sd(x_var, na.rm = T)) * n * bin, color = "darkred", size = 1, na.rm = T) +
+    labs(y = 'Count',x = x_lab ) +
+    theme_bw() +
+      theme(
+        plot.title = element_text(size = 12L,
+        face = "bold", hjust = 0.5),
+        axis.title.y = element_text(face = "bold"),
+        axis.title.x = element_text(face = "bold"),
+        legend.position = "none"
+     )
+}
+
+# D. Scatter plot
+Scatter <- function( data, x_var , y_var, x_lab, y_lab, chart_title){
+  
+  ggplot( data , aes(x = {{ x_var }}, y = {{ y_var }})) +
+    geom_point(color="#2ca25f",size=0.5,alpha=0.6, na.rm = T) +
+    geom_smooth(method="loess" , formula = y ~ x , na.rm = T)+
+    labs(x = x_lab, y = y_lab) +
+    #ggtitle(chart_title) +
+    theme_bw() +
+    theme(
+    plot.title = element_text(size = 12L,
+    face = "bold", hjust = 0.5),
+    axis.title.y = element_text(face = "bold"),
+    axis.title.x = element_text(face = "bold"),
+    legend.position = "none"
+    )
+}
+
+
+```
+
+
+```{r dataset-import, echo = F, include = F}
+
+# Import Student dataset
+
+# Student dataset
+download.file("https://raw.githubusercontent.com/viktoriakonya/CEU-DA2/main/Term/data/student.rds", "student.rds", method="curl")
+student <- readRDS("student.rds")
+
+# Create dataset for analysis with PISA survey data
+df0 <- student %>% filter(year %in% c('2018', '2015', '2012') & country %in% c('HUN', 'POL', 'SVK', 'CZE', 'AUT', 'ESP', 'GBR','ITA', 'FRA', 'DEU'))
+
+# Remove files
+rm(list=c("student"))
+
+```
+
+
+
+```{r data-munging, echo = F, include = F}
+
+# Data munging
+
+df0 <- df0 %>% 
+  
+  # Select variables
+  select(year, country, student_id, mother_educ, father_educ, gender, computer, internet, math, read, science, stu_wgt, desk, room, book, escs) %>% 
+  
+  mutate(
+    
+    # Mother's education
+    mother_education = case_when(
+    mother_educ %in% c("less than ISCED1", "ISCED 1", "ISCED 2" ) ~ 1, # Pre-primary level of education, Primary level of education or Lower secondary education (0, 4, 8 years of education)
+    mother_educ == "ISCED 3B, C" ~ 2, # upper secondary education providing direct access to the labour market or to non-university tertiary education programmes (10.5 years of education)
+    mother_educ == "ISCED 3A" ~ 3 # Upper secondary education providing access to university level tertiary education programmes (12 years of education)
+    # else NA 
+    ),
+    
+    # Father's education
+    father_education = case_when(
+    father_educ %in% c("less than ISCED1", "ISCED 1", "ISCED 2" ) ~ 1, # Pre-primary level of education, Primary level of education or Lower secondary education (0, 4, 8 years of education)
+    father_educ == "ISCED 3B, C" ~ 2,  # upper secondary education providing direct access to the labour market or to non-university tertiary education programmes (10.5 years of education)
+    father_educ == "ISCED 3A" ~ 3 # Upper secondary education providing access to university level tertiary education  programmes (12 years of education)
+    # else NA 
+    ),
+    
+    # Parents' education
+    parents_education = pmax(coalesce(mother_education, father_education), coalesce(father_education, mother_education)), # If NA take the other parent's education to decrease NAs
+    
+    # Recode 'computer' to show the academic 'loss'
+    has_computer = case_when(
+      computer == 'yes' ~ 0,
+      computer == 'no' ~ 1
+      # else NA
+    ),
+    
+    # Recode 'internet' to show the academic 'loss'
+    has_internet = case_when(
+      internet == 'yes' ~ 0,
+      internet == 'no' ~ 1
+      # else NA
+    ),
+    
+    # Recode 'room' to show the academic 'loss'
+    has_room = case_when(
+      room == 'yes' ~ 0,
+      room == 'no' ~ 1
+      # else NA
+    ),
+    
+    # Recode 'desk' to show the academic 'loss'
+    has_desk = case_when(
+      desk == 'yes' ~ 0,
+      desk == 'no' ~ 1
+      # else NA
+    ),
+    
+    
+    # Female
+    female = case_when(
+      gender == 'female' ~ 1,
+      gender == 'male' ~ 0
+      # else NA
+    ),
+    
+    
+    # Recode number of books
+    books = case_when(
+      book == "0-10" ~ 1, 
+      book == "11-25" ~ 2,
+      book == "26-100" ~ 3,
+      book == "101-200" ~ 4,      
+      book == "201-500" ~ 5,  
+      book == "more than 500" ~ 6
+      # else NA
+      )
+  )
+  
+
+# Check recodings
+df0 %>% group_by(mother_education, mother_educ) %>% dplyr::summarize(n())
+df0 %>% group_by(father_education, father_educ) %>% dplyr::summarize(n())
+df0 %>% group_by(parents_education) %>% dplyr::summarize(n())
+df0 %>% group_by(computer, has_computer) %>% dplyr::summarize(n())
+df0 %>% group_by(internet, has_internet) %>% dplyr::summarize(n())
+df0 %>% group_by(room, has_room) %>% dplyr::summarize(n())
+df0 %>% group_by(gender, female) %>% dplyr::summarize(n())
+df0 %>% group_by(book, books) %>% dplyr::summarize(n())
+
+
+# Filter for relevant data
+df <- df0 %>% 
+  filter(year == '2018' & country %in% 'HUN') 
+
+```
+
+
+\vspace{-10mm}
+### Introduction
+\vspace{-3mm}
+
+The purpose of this report is to examine the inequalities in the education system due to the access to ICT resources. The question got more spotlight with the Coronavirus pandemic of 2020 which forced students to adapt to distance learning almost overnight and continue their studies using their own electronic devices. My hypothesis is that even before the pandemic those who had limited access to computers or internet suffered considerable academic loss. Using 2018 PISA data from Hungary my goal is to gauge the link between the access to ICT resources at home and the students' PISA test scores and to estimate the magnitude of the academic loss due to the lack of such resources.
+
+
+\vspace{-5mm}
+### Data
+\vspace{-3mm}
+
+The PISA survey is an international educational assessment implemented by the OECD which measures the 15-year-old students' mathematics, reading and science literacy every three years. The test scores of the students are supplemented by a student survey and a school survey. The student survey asks questions about the socio-economic background of the students as well the households' situation regarding the possession of computers or access to internet. The school survey provides additional information about the schools where the students continue their studies including their financing scheme and staff information.
+
+In order to test the hypothesis about the pattern between the ICT resources and test scores, I will assume that two groups of predictors impact the students' academic performance, hence needs to be controlled for: the background characteristics of the students and the characteristics of the students' school. The specification of the theoretical model is the following:
+$$Test\ \ score_{i} = \alpha + \beta_{1} No\ \ computer_{i} + \sum_{k} \gamma_{k}\ \ Student\ \ charactesistics _{k, i} + \sum_{l} \rho_{l}\ \ School\ \ characteristics_{l, i} $$
+Where the outcome $Test\ \ score$ is the test score of mathematics, reading or science, $No\ \ computer$ is a dummy showing if the student's household do not own any computers, $Student_{k,i}$ is a vector with the student's characteristics and family background variables and finally, $School_{l,i}$ contains the the attributes of the students' school. In this analysis I will only consider the students' background variables as controls and ignore the school effect despite we know that schools have considerable contribution to students' academic success. From the student's predictors the following variables will be considered: the students' index of socio-economic status "SES" (ESCS), the household's access to internet, the student's gender, education of parents, possession of an own room or own desk and the approximate number of books in the household. If there is academic loss due to the lack of access to ICT resources, then we expect to have significant negative estimate of the $No\ \ computer$ even after controlling for the students individual and family background variables. I will present the detailed results in the main text using the maths score as outcome variables. Results for the read score can be found in the *Appendix*.
+
+
+\vspace{-5mm}
+### Descriptive statistics
+\vspace{-3mm}
+
+The below table summarizes the most important features of the outcome and explanatory variables. The distributions of the variables presented in the table can be found in *Appendix A2 Table 2*.
+
+\vspace{-3mm}
+```{r main-descriptives, echo = F}
+
+# Summary table of outcome and explanatory variables
+# Note: Appendix A.1. contains the descriptive statistics by the access to computer 
+# Note: Appendix A.2. contains the histograms of the outcome variables and ESCS
+
+P95 <- function(x){quantile(x,0.95,na.rm=T)}
+P05 <- function(x){quantile(x,0.05,na.rm=T)}
+Range <- function(x){max(x, na.rm = TRUE) - min(x, na.rm = TRUE)}
+Missing <- function(x){sum(is.na(x))}
+
+# Numeric variables
+datasummary(  
+              ( `Math` = math ) +
+              #( `Read` = read ) +               
+              #( `Science` = science ) +
+              ( `Computer` = has_computer ) +
+              ( `Internet` = has_internet ) +
+              ( `Female` = female ) + 
+              ( `ESCS` = escs ) +                
+              ( `Own room` = has_room ) +
+              ( `Desk` = has_desk )  ~ 
+    (N + Missing + Mean + SD + Min + Max + Range + P05 + Median  + P95),
+    data = df,
+    title = 'Descriptive statistics' ) %>% 
+    kableExtra::kable_styling(latex_options = "hold_position", font_size = 9)
+
+
+```
+
+
+
+\newpage
+The average test score in math is 489 with a difference of 646 scores between the best and the worst test results. Binary variables were included in the summary table in order to explore the frequency of each group. If we look at the variables of our interest then we can see the proportion of students without a computer at home is about 8 percent, while Internet connection is absent in the homes of 1 percent of students. The numbers are about the same if we look at the own room and own desk variables which shows that 8 and 3 percent of the students in the sample lack these at their homes. The SES index of a student is expected to be the most influential predictor of the students' performance. If we look at its distribution in the *Appendix A.2.* we can see that it has a distribution close to normal and lack extreme values. Note that in case of the parents' education three education categories were created from the ISCED codes: Pre-primary, primary and lower secondary education were grouped together (8 years of education), upper secondary education without secondary school leaving examination (10.5 years of education) and upper secondary education with secondary school leaving examination (12 years of education).
+
+\vspace{-5mm}
+### Feature selection
+\vspace{-3mm}
+
+In order to determine which are the potentially strong predictors of the test scores, the association between the math results and the explanatory variables needs to be examined.  *Figure 1* shows the relationship between the math scores and the access to computers as well as with the students' SES index.
+
+```{r main-relationship-with-outcome, echo = F, fig.align='center', fig.height=4, fig.width=10, warning=F, message=F}
+
+# Relationship with outcome 
+
+# Note: Appendix A.3. contains the rest of the bin scatters
+# Note: Appendix A.4. contains the rest of the scatterplots
+
+# ESCS
+scatter_math_escs <- Scatter(data = df, x_var = escs, y_var = math, x_lab = "Index of socio-economic status", y_lab = "Math scores") 
+
+# Computer
+bin_scatter_math_computer <- bin_scatters(data = df, x_var = has_computer, y_var = math, x_lab = "Computer", y_lab = "Math score", lab_x1 = "Yes", lab_x0 = "No") # Decreasing
+
+# Plot the average math test scores by computer and scatter plot of escs and math scores
+grid.arrange(grobs = list(
+              bin_scatter_math_computer, 
+              scatter_math_escs),
+              ncol=2,
+              top = "Fig1.: Relationship between (1) computers in the household / (2) ESCS and math test scores",
+              bottom = "Note: Horizontal lines in (1) show the average math test scores.")
+
+rm("bin_scatter_math_computer", "scatter_math_escs")
+
+```
+
+
+First, let's take a look at the variable of our interest. The first panel shows the average test scores among student who have and do not have computers in their households. As expected, students without access to computers in their homes have lower performance, on average. The average test score disadvantage of students without computers in their homes is 64 test scores. The figures imply considerable academic loss due to the lack of ICT resources in the household, however we cannot yet draw conclusions as there are several other factors that determine the academic performance of the students. We expect this gap to decrease as we include more of the observable attributes of the students but some of the loss in test scores should remain in order to find evidence for academic inequalities by the access to ICT resources.
+
+It is also worth to take a look at the pattern of association between the outcome and the controlling variables. The second panel shows the scatter plot of our key control variable, the SES index against the test scores together with the lowess smoother. It seems that the relationship is positive and linear as we assumed, but after about the SES index of 2 it sharply decreases. It would imply that higher socio-economic status contributes to the academic performance until a certain level, but the performance of the students with the highest socio-economic status declines. In order to capture the potential non-linearity in the relationship, we can try to fit a linear piecewise spline and test if we can find evidence for a negative association between the test scores and the second segment of the SES index at all. 
+
+For the predictors **Appendix A.3.** contains the corresponding visualizations of the joint distributions and it also contains the same for the read scores. As the rest of our predictors are either binary or ordinal, in this case we can take a look at the average test scores by the the values of the qualitative variables to have an idea which can be the potentially strong predictors of the test results. The average test scores do not seem to differ much by the gender of the students, by the own room and an own desk flags. However, test scores monotonically increase with the parents' education and with the number of the books owned in the household. It implies that the latter two predictors should be also in the focus of the regression analysis.
+
+\newpage
+\vspace{-10mm}
+### Regression analysis
+\vspace{-3mm}
+
+The purpose of the regression analysis to uncover and quantify the extent of the academic loss due to the access to the ICT resources while we also consider other characteristics of the students. The detailed model building steps can be found in the *Appendix A.4.* while in this section only the selected model specifications are presented.
+
+```{r main-regression-building-math, include = F,  echo = F,  warning = F}
+
+# Regression analysis - Building steps
+# Note: Appendix A4. contains the building steps
+
+# A. Math scores 
+
+# Unconditional
+reg1 <- feols(math ~ has_computer, data=df, vcov = 'hetero' )
+
+
+# With students' characteristics
+
+# Simple association
+reg2 <- feols(math ~ has_computer + escs, data = df, vcov = 'hetero' )
+
+reg3 <- feols(math ~ has_computer + escs + as.factor(parents_education), data = df, vcov = 'hetero', weights = df$stu_wgt  )
+
+reg4 <- feols(math ~ has_computer + escs + as.factor(parents_education) + as.factor(books), data = df, vcov = 'hetero' , weights = df$stu_wgt )
+
+reg5 <- feols(math ~ has_computer + escs + as.factor(parents_education) + as.factor(books) + female, data = df, vcov = 'hetero', weights = df$stu_wgt )
+
+reg6 <- feols(math ~ has_computer + escs + as.factor(parents_education) + as.factor(books) + female + has_room, data = df, vcov = 'hetero', weights = df$stu_wgt )
+
+reg7 <- feols(math ~ has_computer + escs + as.factor(parents_education) + as.factor(books) + female + has_desk, data = df, vcov = 'hetero' , weights = df$stu_wgt)
+
+reg8 <- feols(math ~ has_computer + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df, vcov = 'hetero', weights = df$stu_wgt )
+
+# Using complicated pattern
+reg9 <- feols(math ~ has_computer + has_internet + lspline(escs,c(2)) + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df, vcov = 'hetero', weights = df$stu_wgt )
+
+
+```
+
+
+```{r main-regression-output,  include = F, echo = F,  warning = F, message = F}
+
+# Create regression output
+
+# Add variable labels
+varname_report <- c(
+                    "math" = "Math score",
+                    "(Intercept)" = "Intercept",
+                    "has_computer" = "Computer",
+                    "has_internet" = "Internet",
+                    "has_room" = "Own room",
+                    "has_desk" = "Own desk",
+                    "female" = "Gender",
+                    "escs" = "SES",
+                    "as.factor(parents_education)2" = "Parents' education: 10.5 years",
+                    "as.factor(parents_education)3" = "Parents' education: 12 years",
+                    "lspline(escs, c(2))1" = "Socio-economic status < 2",
+                    "lspline(escs, c(2))2" = "Socio-economic status >= 2",
+                    "as.factor(books)1" = "Books: 0-10", 
+                    "as.factor(books)2" = "Books: 11-25", 
+                    "as.factor(books)3" = "Books: 26-100", 
+                    "as.factor(books)4" = "Books: 101-200", 
+                    "as.factor(books)5" = "Books: 201-500", 
+                    "as.factor(books)6" = "Books: 500+"                  
+                    )
+
+# Final summary table
+msummary(list("(1)" = reg1, "(2)" = reg2, "(3)" = reg8, "(4)" =  reg9),
+         fmt="%.2f",
+         gof_omit = 'DF|Deviance|Log.Lik.|F|AIC|BIC|R2 Within|R2 Pseudo|Std.Errors',
+         stars=TRUE,
+         estimate = "{estimate}{stars} ", 
+         statistic = "std.error",
+         coef_rename = varname_report,
+         title = "Dependent variable: Math score") %>% 
+        kable_classic(full_width = F, position = "center" , font_size = 9)
+
+# Note: I could not make the regression table to the exact format that I wanted so I added latex table instead
+
+```
+
+\vspace{-\parsep}
+```{=latex}
+
+\begin{table}[H]
+\centering
+\resizebox{11cm}{!} 
+{
+\begin{tabular}{lcccc}
+\multicolumn{5}{c}{Table 2: Regression output}                                                                                                                           \\ \midrule
+\multicolumn{5}{c}{Dependent variable : Math scores}                                                                                                                     \\
+Variable                                                       & (1)                  & (2)                  & (3)                         & (4)                         \\ \midrule
+Intercept                                                      & 495.24***            & 494.70***            & 394.17***                   & 396.16***                   \\
+                                                               & (1.26)               & (1.13)               & (5.80)                      & (5.79)                      \\
+Computer                                                       & -65.40***            & -23.69***            & -19.30***                   & -18.95***                   \\
+                                                               & (4.69)               & (4.47)               & (4.54)                      & (4.54)                      \\
+SES                                                            &                      & 43.34***             & 15.11***                    &                             \\
+                                                               &                      & (1.27)               & (1.83)                      &                             \\
+Internet                                                       &                      &                      & 4.99                        & 5.35                        \\
+                                                               &                      &                      & (10.53)                     & (10.53)                     \\
+Parents' education: 10.5 years                                 &                      &                      & 37.93***                    & 37.16***                    \\
+                                                               &                      &                      & (5.38)                      & (5.39)                      \\
+Parents' education: 12 years                                   &                      &                      & 54.37***                    & 52.93***                    \\
+                                                               &                      &                      & (5.73)                      & (5.73)                      \\
+Gender                                                         &                      &                      & -13.47***                   & -13.55***                   \\
+                                                               &                      &                      & (2.17)                      & (2.17)                      \\
+Socio-economic status \textless 2                              &                      &                      &                             & 16.34***                    \\
+                                                               &                      &                      &                             & (1.81)                      \\
+Socio-economic status \textgreater{}= 2                        &                      &                      &                             & -61.85**                    \\
+                                                               &                      &                      &                             & (23.38)                     \\
+Own room + Own desk                                            &                      &                      & Y                           & Y                           \\
+Books owned                                                    &                      &                      & Y                           & Y                           \\ \midrule
+Num.Obs.                                                       & 5067                 & 5051                 & 4972                        & 4972                        \\
+R2                                                             & 0.039                & 0.225                & 0.334                       & 0.336                       \\
+R2 Adj.                                                        & 0.038                & 0.225                & 0.328                       & 0.329                       \\
+Student weights                                                & Y                    & Y                    & Y                           & Y                           \\ \midrule
+* p \textless 0.05, ** p \textless 0.01, *** p \textless 0.001 & \multicolumn{1}{l}{} & \multicolumn{1}{l}{} & \multicolumn{1}{l}{}        & \multicolumn{1}{l}{}       
+\end{tabular}
+}
+\end{table}
+
+
+```
+
+
+The results imply that the academic disadvantage of students without ICT resources at home is 65 test scores without controlling for the students' observable characteristics. However, the explanatory power of the first model is quite poor with only explaining about 4 percent of the overall variation of the math scores. When we include the SES index of the students in our second model the ICT gap decreases to 23 scores as well as the the $R^{2}$ increases to 22 percent. It suggests that, as we expected, that the socio-economic background is the strongest predictor of the academic performance. In the third regression, more background variables of the students were added, including the education of the parents, the students' gender, the approximate number of books in the household and weather the students own a desk or a room and the household has Internet connection. The level of education of the parents and the number of books owned are both positively associated with the test performance, only the 500 or above books owned seems to break the monotonicity of the relationship. Female students have, on average, lower performance in the math test and owning a desk does not seems to influence the test scores. Moreover, the Internet connection is statistically not significant in the model which can be due to the low number of observations and its strong association with the computer field. Overall, after including all the available important characteristics of the students the academic loss due to the lack of ICT resources is 17 scores in the maths tests. In regression four, linear piecewise spline was included to capture the negative pattern at the high level of the SES index. It seems that the more complicated pattern does not change much on the explanatory power of the model, hence we can use the third model to make robustness checks.
+
+
+\vspace{-5mm}
+### Generalization and external validity
+\vspace{-3mm}
+
+Now that we examined the relationship between the access to ICT resources and the maths scores in Hungary, let's make some robustness checks weather we can find same patterns in case of the test scores in other subjects, in other countries and in other years when the test took place.
+
+Firstly, let's take a look at at the ICT gap using the reading and science test scores as outcome variables. Appendix *A.5.* contains the results of regressions with only the ownership of the computer and using the full model with all student background variables. The figures imply very similar academic disadvantages to what we saw using the math scores as dependent variable which is about 21 and 19 scores for those without computers at their homes.
+
+Another interesting question is weather we can see the same pattern in other countries. In order to test the similarity in the pattern across countries, the same model was applied on the PISA survey results of the three other V4 countries and on six Western-European countries. *Appendix A.6.* contains the detailed results of the regressions, i the main text only the estimated parameter of owning a computer is presented.
+
+```{r main-regression-countries, echo = F, include = F}
+
+# Regressions for each country
+# Note: Regression outputs are in Appendix A6.
+
+# HUN - 2018
+reg_cu_1 <- feols(math ~ has_computer , data = df, vcov = 'hetero', weights = df$stu_wgt )
+reg_c_1 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df, vcov = 'hetero', weights = df$stu_wgt )
+
+# POL - 2018
+df_pol <- df0 %>% filter(country == 'POL' & year == 2018)
+reg_cu_2 <- feols(math ~ has_computer , data = df_pol, vcov = 'hetero', weights = df_pol$stu_wgt )
+reg_c_2 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df_pol, vcov = 'hetero', weights = df_pol$stu_wgt )
+
+# CZE - 2018
+df_cze <- df0 %>% filter(country == 'CZE' & year == 2018)
+reg_cu_3 <- feols(math ~ has_computer , data = df_cze, vcov = 'hetero', weights = df_cze$stu_wgt )
+reg_c_3 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df_cze, vcov = 'hetero', weights = df_cze$stu_wgt )
+
+# SVK - 2018
+df_svk <- df0 %>% filter(country == 'SVK' & year == 2018)
+reg_cu_4 <- feols(math ~ has_computer , data = df_svk, vcov = 'hetero', weights = df_svk$stu_wgt )
+reg_c_4 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df_svk, vcov = 'hetero', weights = df_svk$stu_wgt )
+
+# AUT - 2018
+df_aut <- df0 %>% filter(country == 'AUT' & year == 2018)
+reg_cu_5 <- feols(math ~ has_computer , data = df_aut, vcov = 'hetero', weights = df_aut$stu_wgt )
+reg_c_5 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df_aut, vcov = 'hetero', weights = df_aut$stu_wgt )
+
+# ESP - 2018
+df_esp <- df0 %>% filter(country == 'ESP' & year == 2018)
+reg_cu_6 <- feols(math ~ has_computer , data = df_esp, vcov = 'hetero', weights = df_esp$stu_wgt )
+reg_c_6 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df_esp, vcov = 'hetero', weights = df_esp$stu_wgt )
+
+# GBR - 2018
+df_gbr <- df0 %>% filter(country == 'GBR' & year == 2018)
+reg_cu_7 <- feols(math ~ has_computer , data = df_gbr, vcov = 'hetero', weights = df_gbr$stu_wgt )
+reg_c_7 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df_gbr, vcov = 'hetero', weights = df_gbr$stu_wgt )
+
+# ITA - 2018
+df_ita <- df0 %>% filter(country == 'ITA' & year == 2018)
+reg_cu_8 <- feols(math ~ has_computer , data = df_ita, vcov = 'hetero', weights = df_ita$stu_wgt )
+reg_c_8 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df_ita, vcov = 'hetero', weights = df_ita$stu_wgt )
+
+# FRA - 2018
+df_fra <- df0 %>% filter(country == 'FRA' & year == 2018)
+reg_cu_9<- feols(math ~ has_computer , data = df_fra, vcov = 'hetero', weights = df_fra$stu_wgt )
+reg_c_9 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df_fra, vcov = 'hetero', weights = df_fra$stu_wgt )
+
+# DEU - 2018
+df_deu <- df0 %>% filter(country == 'DEU' & year == 2018)
+reg_cu_10 <- feols(math ~ has_computer , data = df_deu, vcov = 'hetero', weights = df_deu$stu_wgt )
+reg_c_10 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df_deu, vcov = 'hetero', weights = df_deu$stu_wgt )
+
+```
+
+```{r main-coefficients, echo = F, fig.align='center', fig.height=3.5, fig.width=5, warning=F, message=F}
+
+# Save the results of the regression estimates
+
+# Create placeholder table
+SI <- data.frame(matrix(NA, nrow = 20, ncol = 6))
+colnames(SI)<- c("model", "type", "coeff","se","conf_low","conf_high" )
+
+# Create name vector with country names 
+names <- c("HUN", "POL", "CZE", "SVK", "AUT", "ESP", "GBR", "ITA", "FRA", "DEU")
+
+# Save conditional regression results
+for (i in 1:10) {
+  
+  SI$type[i] <- "Conditional"
+  SI$model[i] <- names[i] # paste0('Model',i)
+  SI$coeff[i] <- eval(as.name(paste0('reg_c_',i)))$coefficients[2]  
+  SI$se[i] <- eval(as.name(paste0('reg_c_',i)))$se[2]  
+  SI$conf_low[i] <- SI$coeff[i] - 1.96 * SI$se[i]  
+  SI$conf_high[i] <- SI$coeff[i] + 1.96 * SI$se[i]  
+
+}
+
+# Save unonditional regression results
+for (i in 11:20) {
+  
+  SI$type[i] <- "Unconditional"
+  SI$model[i] <- names[i-10] # paste0('Model',i)
+  SI$coeff[i] <- eval(as.name(paste0('reg_cu_',i-10)))$coefficients[2]  
+  SI$se[i] <- eval(as.name(paste0('reg_cu_',i-10)))$se[2]  
+  SI$conf_low[i] <- SI$coeff[i] - 1.96 * SI$se[i]  
+  SI$conf_high[i] <- SI$coeff[i] + 1.96 * SI$se[i]  
+
+}
+
+# Visualize redults
+ggplot(SI, aes(x = coeff, y = factor(model, level = c("HUN", "POL", "CZE", "SVK", "AUT", "ESP", "GBR", "ITA", "FRA", "DEU")), xmin = conf_low, xmax = conf_high)) +
+  geom_errorbarh(height=.2, aes(color = type), size = 1) +
+  geom_point(size = 2) +
+  theme_bw() +
+  labs(x = "Difference in math test scores", y= "", color = "", caption="Note: Markers show the estimated parameter of owning a computer and error bars \n show the 95% CI. The Unconditional estimate shows the gap without control \n variables and the conditional estimate shows the same for the full modell  with \n the control variables discussed in Table2. ") +
+  scale_color_manual(values = c("#00AFBB", "#2ca25f")) +
+  scale_x_continuous(limits = c(-110, 0), breaks = seq(-120, 0, by = 20)) +
+  ggtitle("Fig.2: Academic loss due to ICT gap in European countries") + 
+  theme(
+    plot.title = element_text(size = 10L,
+    face = "bold", hjust = 0.5),
+    legend.position = "bottom",
+    legend.margin=margin(-15,-10,-10,-10),
+    axis.title.x = element_text(face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    plot.caption=element_text(size=7.5, hjust=0, margin=margin(t=15))) +
+  coord_flip()
+
+
+```
+
+The unconditional ICT gap seems to be the strongest in Slovakia and Germany, where students without ICT resources suffer more than 80 loss in test scores, on average. When all student background attributes are controlled for, some part of this disadvantage diminishes in all the examined countries, just like we have seen from the regression analysis of Hungary. If we compare the conditional gap with other countries, Hungary seems to have the smallest negative gap together with Slovakia, Poland and Britain. It can either mean that the disadvantage in academic loss due to the lack of ICT devices is moderate in Hungary compared to other European countries or that the students' performance is strngly related to the other background variables, such as the SES index or the education of parents. If we look at *Table 5* in *Appendix A6* it seems that the parents' education adds most to the performance of the student in Hungary among the examined countries.
+
+We can make another stability check by comparing different PISA survey results. The evolution of the ICT gap over the past three PISA test in Hungary is shown in *Appendix A.7.*. It seems that the academic loss due to the ICT gap , both conditional and unconditional,  slightly decreased over the 3 years from 23 to 18 scores but the gap seems fairly stable over the years.
+
+
+
+### Conclusion
+
+
+
+
+
+\newpage
+### Appendix
+### A1. Detailed descriptive statistics
+
+```{r A1-descriptives, echo = F}
+
+# Detailed descriptive statistics by the students' access to computers
+
+datasummary(  ( Heading("Computer") * 
+              ( recode_factor( has_computer, `1` = "Without computer", `0` = "With computer") )  * Heading("Variable") * (
+              ( `Math` = math ) +
+              ( `Read` = read ) +               
+              ( `Computer` = has_computer ) +
+              ( `Internet` = has_internet ) +
+              ( `Female` = female ) + 
+              ( `ESCS` = escs ) +                
+              ( `Own room` = has_room ) +
+              ( `Desk` = has_desk ) )) ~ 
+    (N + Missing + Mean + SD + Min + Max + P05 + Median  + P95),
+  data = df,
+  title = 'Descriptive statistics by access to computer' ) %>% 
+  kableExtra::kable_styling(latex_options = "hold_position", font_size = 8)
+
+```
+
+\newpage
+### A2. Single factor analysis - Histograms of explanatory variables
+
+```{r A2-histograms, echo = F, fig.align='center', fig.height=6, fig.width=10, warning=F, message=F}
+
+# Histograms
+
+# Outcome
+hist_math <- histograms(df$math, 'Math scores', 20) # Normal
+hist_read <- histograms(df$read, 'Read scores', 20) # Normal
+hist_science <- histograms(df$science, 'Science scores', 20) # Normal
+
+# Student - Socio-economic background
+hist_escs <- histograms(df$escs, 'Socio-economic index (ESCS)', 0.2) # ~ Normal
+
+blank <- grid.rect(gp=gpar(col="white"))
+
+# Visualize
+grid.arrange(hist_math, 
+             hist_read, 
+             hist_science,
+             hist_escs,
+             ncol=2,
+             top = "Fig3.: Histograms of the test scores and ESCS",
+             bottom = "Note: Normal curve was added to the chart.")
+
+rm("hist_math", "hist_read", "hist_science", "hist_escs")
+
+```
+
+\newpage
+#### A3. Relatinship with outcome variables (mat and read scores)
+
+```{r A3-relationship-with-outcome, echo = F, fig.align='center', fig.height=12, fig.width=10, warning=F, message=F}
+
+# Relationship with outcome 
+
+# ESCS
+scatter_read_escs <- Scatter(data = df, x_var = escs, y_var = read, x_lab = "Index of socio-economic status", y_lab = "Read scores")
+
+# Computer
+bin_scatter_read_computer <- bin_scatters(data = df, x_var = has_computer, y_var = read, x_lab = "Computer", y_lab = "Read score", lab_x1 = "Yes", lab_x0 = "No") # Decreasing
+
+# Internet
+bin_scatter_math_internet <- bin_scatters(data = df, x_var = has_internet, y_var = math, x_lab = "Internet", y_lab = "Math score", lab_x1 = "Yes", lab_x0 = "No") # Decreasing
+bin_scatter_read_internet <- bin_scatters(data = df, x_var = has_internet, y_var = read, x_lab = "Internet", y_lab = "Read score", lab_x1 = "Yes", lab_x0 = "No") # Decreasing
+
+# Gender
+bin_scatter_math_feamle <- bin_scatters(data = df, x_var = female, y_var = math, x_lab = "Gender", y_lab = "Math score", lab_x1 = "Male", lab_x0 = "Female") # About the same
+bin_scatter_read_female <- bin_scatters(data = df, x_var = female, y_var = read, x_lab = "Gender", y_lab = "Read score", lab_x1 = "Male", lab_x0 = "Female") # Higher for females
+
+# Room
+bin_scatter_math_room <- bin_scatters(data = df, x_var = has_room, y_var = math, x_lab = "Own room", y_lab = "Math score", lab_x1 = "Yes", lab_x0 = "No") # About the same
+bin_scatter_read_room <- bin_scatters(data = df, x_var = has_room, y_var = read, x_lab = "Own room", y_lab = "Read score", lab_x1 = "Yes", lab_x0 = "No") # About the same
+
+# Desk
+bin_scatter_math_desk <- bin_scatters(data = df, x_var = has_desk, y_var = math, x_lab = "Own edsk", y_lab = "Math score", lab_x1 = "Yes", lab_x0 = "No") # About the same
+bin_scatter_read_desk <- bin_scatters(data = df, x_var = has_desk, y_var = read, x_lab = "Own desk", y_lab = "Read score", lab_x1 = "Yes", lab_x0 = "No") # About the same
+
+# Parents' education
+bin_scatter_math_pareduc <- bin_scatters_multi(data = df, x_var = parents_education, y_var = math, x_lab = "Parents' highest education", y_lab = "Math score") # ~ Monotonicly increasing
+bin_scatter_read_pareduc <- bin_scatters_multi(data = df, x_var = parents_education, y_var = read, x_lab = "Parents' highest education", y_lab = "Read score") # Monotonicly increasing
+
+# Books
+bin_scatter_math_books <- bin_scatters_multi(data = df, x_var = books, y_var = math, x_lab = "Number of books", y_lab = "Math score") # ~ Monotonicly increasing
+bin_scatter_read_books <- bin_scatters_multi(data = df, x_var = books, y_var = read, x_lab = "Number of books", y_lab = "Read score") # Monotonicly increasing
+
+
+grid.arrange( grobs = list(
+              scatter_read_escs,
+              bin_scatter_read_computer,
+              bin_scatter_math_internet, 
+              bin_scatter_read_internet,
+              bin_scatter_math_feamle, 
+              bin_scatter_read_female,
+              bin_scatter_math_room,
+              bin_scatter_read_room),
+             ncol=2,
+             top = "Fig4.: Relationship with math test scores",
+             bottom = "Note: Note: Horizontal lines in (1) show the average math test scores.")
+
+```
+
+\newpage
+```{r A3-relatinship-with-outcone2, echo = F, fig.align='center', fig.height=8, fig.width=10, warning=F, message=F}
+
+# Relationship with outcome - Qualitative variables (continued)
+
+grid.arrange( grobs = list(
+              bin_scatter_math_desk,
+              bin_scatter_read_desk,
+              bin_scatter_math_pareduc,
+              bin_scatter_read_pareduc,
+              bin_scatter_math_books,
+              bin_scatter_read_books), 
+             ncol=2,
+             top = "Fig5.: Relationship with math test scores (cont'd)",
+             bottom = "Note: Note: Horizontal lines in (1) show the average math test scores.")
+
+```
+
+
+
+\newpage
+### A.4. Regression results - Building steps
+
+```{r A4-regression-HUN-building-steps,  echo = F,  warning = F, message = F}
+
+# Summary table of the building steps of the HUN 2018 model
+
+msummary(list("(1)" = reg1, "(2)" = reg2, "(3)" = reg3, "(4)" =  reg4, "(5)" = reg5, "(6)" = reg6, "(7)" = reg7, "(8)" = reg8, "(9)" = reg9),
+         fmt="%.2f",
+         gof_omit = 'DF|Deviance|Log.Lik.|F|AIC|BIC|R2 Within|R2 Pseudo|Std.Errors',
+         stars=TRUE,
+         estimate = "{estimate}{stars} ", 
+         statistic = "std.error",
+         coef_rename = varname_report,
+         title = "Dependent variable: Math score") %>% 
+        kable_classic(full_width = F, position = "center" , font_size = 9) %>% 
+  kableExtra::landscape()
+
+```
+
+\newpage
+### A.5. Robustness checks - Read and Science scores
+
+```{r A5-regression-HUN-read-science, echo = F,  warning = F, message = F}
+
+# Regression analysis - Building steps
+
+# A. Read scores 
+
+# Unconditional
+reg1_r <- feols(read ~ has_computer, data=df, vcov = 'hetero' , weights = df$stu_wgt )
+
+# With students' characteristics
+reg8_r <- feols(read ~ has_computer + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df, vcov = 'hetero', weights = df$stu_wgt )
+
+
+# B. Science scores 
+
+# Unconditional
+reg1_sc <- feols(science ~ has_computer, data=df, vcov = 'hetero', weights = df$stu_wgt  )
+
+# With students' characteristics
+reg8_sc <- feols(science ~ has_computer + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df, vcov = 'hetero', weights = df$stu_wgt )
+
+
+# Summary table
+msummary(list("Read" = reg1_r, "Read" = reg8_r, "Science" = reg1_sc, "Science"  = reg8_sc),
+         fmt="%.2f",
+         gof_omit = 'DF|Deviance|Log.Lik.|F|AIC|BIC|R2 Within|R2 Pseudo|Std.Errors',
+         stars=TRUE,
+         estimate = "{estimate}{stars} ", 
+         statistic = "std.error",
+         #coef_group = groupConf,
+         coef_rename = varname_report,
+         title = "Dependent variable: Math score") %>% 
+        kable_classic(full_width = F, position = "center" , font_size = 9)
+
+
+```
+
+
+### A.6. Robustness checks - Other countries
+
+```{r A6-regressions-countries, echo = F, warning = F, message = F}
+
+# Summary results of country regressions
+msummary(list("HUN" = reg_c_1,  "POL" = reg_c_2, "CZE" = reg_c_3, "SVK" = reg_c_4, "AUT" = reg_c_5,"ESP" = reg_c_6,"GBR" = reg_c_7,"ITA" = reg_c_8, "FRA" = reg_c_9, "DEU" = reg_c_10),
+         fmt="%.2f",
+         gof_omit = 'DF|Deviance|Log.Lik.|F|AIC|BIC|R2 Within|R2 Pseudo|Std.Errors',
+         stars=TRUE,
+         estimate = "{estimate}{stars} ", 
+         statistic = "std.error",
+         #coef_group = groupConf,
+         coef_rename = varname_report,
+         title = "Dependent variable: Math score") %>% 
+        kable_classic(full_width = F, position = "center" , font_size = 9) %>% 
+  kableExtra::landscape()
+
+```
+
+
+\newpage
+#### A.7. Robustness checks - Other years
+
+
+```{r A7-regressions-years, echo = F, warning=F, message=F}
+
+# Summary results of HUN 2018, 2015 and 2013 comparison
+# HUN - 2018
+df2 <- df0 %>% filter(country == 'HUN' & year == 2018)
+reg_cu_1 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_1 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+
+# HUN - 2015
+df2 <- df0 %>% filter(country == 'HUN' & year == 2015)
+reg_cu_2 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_2 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+
+# HUN - 2012
+df2 <- df0 %>% filter(country == 'HUN' & year == 2012)
+reg_cu_3 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_3 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+
+
+msummary(list("2012 - HUN" = reg_cu_3, "2012 - HUN" = reg_c_3, "2015 - HUN" = reg_cu_2, "2015 - HUN" = reg_c_2, "2018 - HUN" = reg_cu_1,  "2018 - HUN" = reg_c_1 ),
+         fmt="%.2f",
+         gof_omit = 'DF|Deviance|Log.Lik.|F|AIC|BIC|R2 Within|R2 Pseudo|Std.Errors',
+         stars=TRUE,
+         estimate = "{estimate}{stars} ", 
+         statistic = "std.error",
+         #coef_group = groupConf,
+         coef_rename = varname_report,
+         title = "Dependent variable: Math score") %>% 
+        kable_classic(full_width = F, position = "center" , font_size = 9) 
+
+
+```
+
+
+```{r A7-regressions-years-errorbar, echo = F, fig.align='center', fig.height=3, fig.width=3, warning=F, message=F}
+
+SI <- data.frame(matrix(NA, nrow = 6, ncol = 6))
+colnames(SI)<- c("model", "type", "coeff","se","conf_low","conf_high" )
+
+years <- c("2018", "2015", "2013", "2018", "2015", "2013")
+
+for (i in 1:3) {
+  
+  SI$type[i] <- "Conditional"
+  SI$model[i] <- "HUN"
+  SI$year[i] <- years[i]
+  SI$coeff[i] <- eval(as.name(paste0('reg_c_',i)))$coefficients[2]  
+  SI$se[i] <- eval(as.name(paste0('reg_c_',i)))$se[2]  
+  SI$conf_low[i] <- SI$coeff[i] - 1.96 * SI$se[i]  
+  SI$conf_high[i] <- SI$coeff[i] + 1.96 * SI$se[i]  
+
+}
+
+for (i in 4:6) {
+  
+  SI$type[i] <- "Unconditional"
+  SI$model[i] <- "HUN"
+  SI$year[i] <- years[i]
+  SI$coeff[i] <- eval(as.name(paste0('reg_cu_',i-3)))$coefficients[2]  
+  SI$se[i] <- eval(as.name(paste0('reg_c_',i-3)))$se[2]  
+  SI$conf_low[i] <- SI$coeff[i] - 1.96 * SI$se[i]  
+  SI$conf_high[i] <- SI$coeff[i] + 1.96 * SI$se[i]  
+
+}
+
+
+ggplot(SI, aes(x = coeff, y = factor(year, level = c("2013", "2015", "2018")), xmin = conf_low, xmax = conf_high)) +
+  geom_errorbarh(height=.2, aes(color = type), size = 1) +
+  geom_point(size = 2) +
+  theme_bw() +
+  labs(x = "Difference inmath scores", y= "", color = "", caption="Note: Markers show the estimated parameter of owning a computer and error bars \n show the 95% CI.") +
+  scale_color_manual(values = c("#00AFBB", "#2ca25f")) +
+  scale_x_continuous(limits = c(-110, 0), breaks = seq(-120, 0, by = 20)) +
+  ggtitle("Fig.8: Academic loss due to ICT gap in Hungary (2012, 2015 and 2018)") +
+  theme(
+     plot.title = element_text(size = 10L,
+    face = "bold", hjust = 0.5),
+    legend.position = "bottom",
+    legend.margin=margin(-15,-10,-10,-10),
+    axis.title.x = element_text(face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    plot.caption=element_text(size=7.5, hjust=0, margin=margin(t=15))) +
+  coord_flip()
+
+ 
+```
+
