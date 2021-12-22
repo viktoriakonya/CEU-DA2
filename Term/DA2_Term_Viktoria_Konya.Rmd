@@ -1,13 +1,16 @@
 ---
-output: pdf_document
 header-includes: |
   \usepackage{titling}
   \usepackage{float}
   \setlength{\droptitle}{-6em} 
-title: "Academic loss due to the access to ICT resources"
+title: "Education inequalities and lack of access to ICT resources"
 author:  "Viktória Kónya"
+date: "`r format(Sys.time(), '%d %B %Y')`"
 geometry: margin=1.8cm
 fontsize: 9pt
+output: 
+  pdf_document:
+    extra_dependencies: ["flafter"]
 ---
 
 ```{r dataset-export, echo = F, include = F}
@@ -46,7 +49,7 @@ fontsize: 9pt
 ```
 
 ```{r setup, include=FALSE} 
-knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, fig.pos = 'H') 
 ```
 
 
@@ -60,8 +63,9 @@ library(kableExtra)
 library(modelsummary)
 library(fixest)
 library(lspline)
-library(reshape2) # correlation matrix
+# library(reshape2) # correlation matrix
 library(gridExtra) # multiple-plots
+library(cowplot)
 library(grid)
 library(tidyverse)
 # library(lme4) # mixed effects
@@ -283,8 +287,8 @@ The purpose of this report is to examine the inequalities in the education syste
 The PISA survey is an international educational assessment implemented by the OECD which measures the 15-year-old students' mathematics, reading and science literacy every three years. The test scores of the students are supplemented by a student survey and a school survey. The student survey asks questions about the socio-economic background of the students as well the households' situation regarding the possession of computers or access to internet. The school survey provides additional information about the schools where the students continue their studies including their financing scheme and staff information.
 
 In order to test the hypothesis about the pattern between the ICT resources and test scores, I will assume that two groups of predictors impact the students' academic performance: the background characteristics of the students and the characteristics of the students' school. The specification of the theoretical model is the following:
-$$Test\ \ score_{i} = \alpha + \beta_{1} No\ \ computer_{i} + \sum_{k} \gamma_{k}\ \ Student\ \ charactesistics _{k, i} + \sum_{l} \rho_{l}\ \ School\ \ characteristics_{l, i} $$
-Where the outcome $Test\ \ score$ is the plausible test score value of mathematics, reading or science, $No\ \ computer$ is a dummy showing if the students' household do not own any computers, $Student_{k,i}$ is a vector with the students' characteristics and family background variables and finally, $School_{l,i}$ contains the the attributes of the students' school. In this analysis I will only consider the students' background variables as controls and ignore the school effect despite we know that schools have considerable contribution to students' academic success. From the students' predictors the following variables will be considered: the students' index of socio-economic status "SES" (ESCS), the household's access to internet, the students' gender, education of parents, possession of an own room or own desk and the approximate number of books in the household. If there is academic loss due to the lack of access to ICT resources, then we expect to have significant negative estimate of the $No\ \ computer$ even after controlling for the students individual and family background variables. I will present the detailed results in the main text using the maths score as the outcome variable. Results for the reading score can be found in the **Appendix**.
+$$Test\ \ score_{i} = \alpha + \beta_{1} No\ \ computer_{i} + \sum_{k} \gamma_{k}\ \ Student\ \ charactesistics _{k, i} + \sum_{l} \rho_{l}\ \ School\ \ characteristics_{l, j} $$
+Where the outcome $Test\ \ score$ is the plausible test score value of mathematics, reading or science, $No\ \ computer$ is a dummy showing if the students' household do not own any computers, $Student_{k,i}$ is a vector with the students' characteristics and family background variables and finally, $School_{l,j}$ contains the the attributes of the students' school. In this analysis I will only consider the students' background variables as controls and ignore the school effect despite we know that schools have considerable contribution to students' academic success. From the students' predictors the following variables will be considered: the students' index of socio-economic status "SES" (ESCS), the household's access to internet, the students' gender, education of parents, possession of an own room or own desk and the approximate number of books in the household. If there is academic loss due to the lack of access to ICT resources, then we expect to have significant negative estimate of the $No\ \ computer$ even after controlling for the students individual and family background variables. I will present the detailed results in the main text using the maths score as the outcome variable. Results for the reading score can be found in the **Appendix**.
 
 
 \vspace{-5mm}
@@ -382,7 +386,7 @@ The purpose of the regression analysis is to uncover and quantify the extent of 
 # A. Math scores 
 
 # Unconditional
-reg1 <- feols(math ~ has_computer, data=df, vcov = 'hetero' )
+reg1 <- feols(math ~ has_computer, data=df, vcov = 'hetero' , weights = df$stu_wgt)
 
 
 # With students' characteristics
@@ -455,16 +459,16 @@ msummary(list("(1)" = reg1, "(2)" = reg2, "(3)" = reg8, "(4)" =  reg9),
 
 \begin{table}[H]
 \centering
-\resizebox{11cm}{!} 
+\resizebox{12cm}{!} 
 {
 \begin{tabular}{lcccc}
 \multicolumn{5}{c}{Table 2: Regression output}                                                                                                                           \\ \midrule
 \multicolumn{5}{c}{Dependent variable : Math scores}                                                                                                                     \\
 Variable                                                       & (1)                  & (2)                  & (3)                         & (4)                         \\ \midrule
-Intercept                                                      & 495.24***            & 494.70***            & 394.17***                   & 396.16***                   \\
-                                                               & (1.26)               & (1.13)               & (5.80)                      & (5.79)                      \\
-Computer                                                       & -65.40***            & -23.69***            & -19.30***                   & -18.95***                   \\
-                                                               & (4.69)               & (4.47)               & (4.54)                      & (4.54)                      \\
+Intercept                                                      & 489.65***            & 494.70***            & 394.17***                   & 396.16***                   \\
+                                                               & (1.35)               & (1.13)               & (5.80)                      & (5.79)                      \\
+Computer                                                       & -68.31***            & -23.69***            & -19.30***                   & -18.95***                   \\
+                                                               & (4.77)               & (4.47)               & (4.54)                      & (4.54)                      \\
 SES                                                            &                      & 43.34***             & 15.11***                    &                             \\
                                                                &                      & (1.27)               & (1.83)                      &                             \\
 Internet                                                       &                      &                      & 4.99                        & 5.35                        \\
@@ -494,7 +498,7 @@ Student weights                                                & Y              
 ```
 
 
-The results imply that the academic disadvantage of students without ICT resources at home is 65 test scores without controlling for the students' observable characteristics. However, the explanatory power of the first model is quite poor with only explaining about 4 percent of the overall variation of the math scores. When we include the SES index of the students in our second model the ICT gap decreases to 23 scores as well as the the $R^{2}$ increases to 22 percent. It suggests that, as we expected, the socio-economic background is the strongest predictor of the academic performance. In the third regression, more background variables of the students were added, including the education of the parents, the students' gender, the approximate number of books in the household and whether the students own a desk or a room and if the household has Internet connection. From the detailed regression output in **Appendix A.4.** it can be seen that the level of education of the parents and the number of books owned are both positively associated with the test performance. Female students have, on average, lower performance in the math test and owning a desk does not seems to influence the test scores. Moreover, the Internet connection is statistically not significant in the model which can be due to the low number of observations and its strong association with the computer field. Overall, after including all the available characteristics of the students the academic loss due to the lack of ICT resources is 17 scores in the math test. In regression four, piecewise linear spline was included to capture the negative pattern at the high level of the SES index. It seems that the more complicated pattern does not change much on the explanatory power of the model, hence we can use the third model to make robustness checks.
+The results imply that the academic disadvantage of students without ICT resources at home is 68 test scores without controlling for the students' observable characteristics. However, the explanatory power of the first model is quite poor with only explaining about 4 percent of the overall variation of the math scores. When we include the SES index of the students in our second model the ICT gap decreases to 23 scores as well as the the $R^{2}$ increases to 22 percent. It suggests that, as we expected, the socio-economic background is the strongest predictor of the academic performance. In the third regression, more background variables of the students were added, including the education of the parents, the students' gender, the approximate number of books in the household and whether the students own a desk or a room and if the household has Internet connection. From the detailed regression output in **Appendix A.4.** it can be seen that the level of education of the parents and the number of books owned are both positively associated with the test performance. Female students have, on average, lower performance in the math test and owning a desk does not seems to influence the test scores. Moreover, the Internet connection is statistically not significant in the model which can be due to the low number of observations and its strong association with the computer field. Overall, after including all the available characteristics of the students the academic loss due to the lack of ICT resources is 17 scores in the math test. In regression four, piecewise linear spline was included to capture the negative pattern at the high level of the SES index. It seems that the more complicated pattern does not change much on the explanatory power of the model, hence we can use the third model to make robustness checks.
 
 
 \vspace{-5mm}
@@ -507,7 +511,7 @@ Firstly, let's take a look at at the ICT gap using the reading and science test 
 
 Another interesting question is whether we can see the same pattern in other countries. In order to test the similarity in the pattern across countries, the same model was applied on the PISA survey results of the three other V4 countries and on six Western European countries. **Appendix A.6.** contains the detailed results of the regressions, while in the main text only the estimated parameters of owning a computer are presented.
 
-```{r main-regression-countries, echo = F, include = F}
+```{r main-regression-countries, echo = F, include = F, warning = F, meassage = F}
 
 # Regressions for each country
 # Note: Regression outputs are in Appendix A6.
@@ -561,9 +565,6 @@ df_deu <- df0 %>% filter(country == 'DEU' & year == 2018)
 reg_cu_10 <- feols(math ~ has_computer , data = df_deu, vcov = 'hetero', weights = df_deu$stu_wgt )
 reg_c_10 <- feols(math ~ has_computer  + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df_deu, vcov = 'hetero', weights = df_deu$stu_wgt )
 
-```
-
-```{r main-coefficients, echo = F, fig.align='center', fig.height=3.5, fig.width=5, warning=F, message=F}
 
 # Save the results of the regression estimates
 
@@ -598,37 +599,137 @@ for (i in 11:20) {
 
 }
 
-# Visualize redults
-ggplot(SI, aes(x = coeff, y = factor(model, level = c("HUN", "POL", "CZE", "SVK", "AUT", "ESP", "GBR", "ITA", "FRA", "DEU")), xmin = conf_low, xmax = conf_high)) +
+# Visualize results
+p1 <- ggplot(SI, aes(x = coeff, y = factor(model, level = c("HUN", "POL", "CZE", "SVK", "AUT", "ESP", "GBR", "ITA", "FRA", "DEU")), xmin = conf_low, xmax = conf_high)) +
   geom_errorbarh(height=.2, aes(color = type), size = 1) +
   geom_point(size = 2) +
   theme_bw() +
-  labs(x = "Difference in math test scores", y= "", color = "", caption="Note: Markers show the estimated parameters of owning a computer and error bars \n show the 95% CI. The unconditional estimates shows the gap without control \n variables and the conditional estimates shows the results from the full model with \n the student background control variables. ") +
+  labs(x = "Difference in math test scores", y= "", color = "") +
   scale_color_manual(values = c("#00AFBB", "#2ca25f")) +
   scale_x_continuous(limits = c(-110, 0), breaks = seq(-120, 0, by = 20)) +
-  ggtitle("Fig.2: Academic loss due to ICT gap in European countries") + 
+  ggtitle("Fig2.a: ICT gap in European countries") + 
   theme(
-    plot.title = element_text(size = 10L,
+    plot.title = element_text(size = 14L,
     face = "bold", hjust = 0.5),
     legend.position = "bottom",
     legend.margin=margin(-15,-10,-10,-10),
-    axis.title.x = element_text(face = "bold"),
-    axis.text.y = element_text(face = "bold"),
-    plot.caption=element_text(size=7.5, hjust=0, margin=margin(t=15))) +
+    axis.title.x = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(face = "bold", size = 12),
+    axis.text.y = element_text(face = "bold", size = 12),
+    axis.text.x = element_text(face = "bold", size = 12),
+    legend.text = element_text(size=12)
+    #plot.caption=element_text(size=7.5, hjust=0, margin=margin(t=15))
+    ) +
   coord_flip()
 
 
 ```
 
-The unconditional ICT gap seems to be the strongest in Slovakia and Germany, where students without ICT resources suffer more than 80 points loss in math test scores, on average. When all student background attributes are controlled for, some part of this disadvantage diminishes in all the examined countries, just like we have seen from the regression analysis of Hungary. If we compare the conditional gap with other countries, Hungary seems to have the smallest negative gap together with Slovakia, Poland and Great Britain. It can either mean that the disadvantage in academic loss due to the lack of ICT devices is moderate in Hungary compared to other European countries or that the students' performance is strongly related to the other background variables, such as the SES index or the education of parents. If we look at **Table 5** in **Appendix A.6.** it seems that the parents' education adds the most to the performance of the student in Hungary among the examined countries.
 
-Finally, we can make another stability check by comparing different PISA survey results in Hungary. The evolution of the ICT gap over the past three PISA math tests in Hungary is shown in **Appendix A.7.**. It seems that the academic loss due to the ICT gap, both conditional and unconditional, slightly decreased over the examined three years. After controlling for the characteristics of the students we can observe that the ICT gap seems to be fairly stable over the three assessments with 23 to 18 test score disadvantage of the students without computers in their homes.
+```{r main-regressions-years, echo = F, include = F, warning=F, message=F}
+
+# Regresssions for each year
+
+# Summary results of HUN 2018, 2015 and 2013 comparison
+# HUN - 2018
+df2 <- df0 %>% filter(country == 'HUN' & year == 2018)
+reg_cu_1 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_1 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+
+# HUN - 2015
+df2 <- df0 %>% filter(country == 'HUN' & year == 2015)
+reg_cu_2 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_2 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+
+# HUN - 2012
+df2 <- df0 %>% filter(country == 'HUN' & year == 2012)
+reg_cu_3 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_3 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+
+
+msummary(list("2012 - HUN" = reg_cu_3, "2012 - HUN" = reg_c_3, "2015 - HUN" = reg_cu_2, "2015 - HUN" = reg_c_2, "2018 - HUN" = reg_cu_1,  "2018 - HUN" = reg_c_1 ),
+         fmt="%.2f",
+         gof_omit = 'DF|Deviance|Log.Lik.|F|AIC|BIC|R2 Within|R2 Pseudo|Std.Errors',
+         stars=TRUE,
+         estimate = "{estimate}{stars} ", 
+         statistic = "std.error",
+         #coef_group = groupConf,
+         coef_rename = varname_report,
+         title = "Dependent variable: Math score",
+         notes = "Note: Data of PISA survey 2018, 2015 and 2012, Hungary.") %>% 
+        kable_classic(full_width = F, position = "center" , font_size = 9) 
+
+
+SI <- data.frame(matrix(NA, nrow = 6, ncol = 6))
+colnames(SI)<- c("model", "type", "coeff","se","conf_low","conf_high" )
+
+years <- c("2018", "2015", "2013", "2018", "2015", "2013")
+
+for (i in 1:3) {
+  
+  SI$type[i] <- "Conditional"
+  SI$model[i] <- "HUN"
+  SI$year[i] <- years[i]
+  SI$coeff[i] <- eval(as.name(paste0('reg_c_',i)))$coefficients[2]  
+  SI$se[i] <- eval(as.name(paste0('reg_c_',i)))$se[2]  
+  SI$conf_low[i] <- SI$coeff[i] - 1.96 * SI$se[i]  
+  SI$conf_high[i] <- SI$coeff[i] + 1.96 * SI$se[i]  
+
+}
+
+for (i in 4:6) {
+  
+  SI$type[i] <- "Unconditional"
+  SI$model[i] <- "HUN"
+  SI$year[i] <- years[i]
+  SI$coeff[i] <- eval(as.name(paste0('reg_cu_',i-3)))$coefficients[2]  
+  SI$se[i] <- eval(as.name(paste0('reg_c_',i-3)))$se[2]  
+  SI$conf_low[i] <- SI$coeff[i] - 1.96 * SI$se[i]  
+  SI$conf_high[i] <- SI$coeff[i] + 1.96 * SI$se[i]  
+
+}
+
+
+p2 <- ggplot(SI, aes(x = coeff, y = factor(year, level = c("2013", "2015", "2018")), xmin = conf_low, xmax = conf_high)) +
+  geom_errorbarh(height=.2, aes(color = type), size = 1) +
+  geom_point(size = 2) +
+  theme_bw() +
+  labs(x = "Difference in math scores", y= "", color = "") +
+  scale_color_manual(values = c("#00AFBB", "#2ca25f")) +
+  scale_x_continuous(limits = c(-110, 0), breaks = seq(-120, 0, by = 20)) +
+  ggtitle("Fig2.b: ICT gap in Hungary") +
+  theme(
+     plot.title = element_text(size = 14L, face = "bold", hjust = 0.5),
+    legend.position = "bottom",
+    legend.margin=margin(-15,-10,-10,-10),
+    axis.title.x = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(face = "bold", size = 12),
+    axis.text.y = element_text(face = "bold", size = 12),
+    axis.text.x = element_text(face = "bold", size = 12),
+    legend.text = element_text(size=12)
+    # plot.caption=element_text(size=7.5, hjust=0, margin=margin(t=15))
+    ) +
+  coord_flip()
+
+ 
+```
+
+```{r, echo = F, fig.align='center', fig.height=4.5, fig.width=10, warning=F, message=F}
+
+plot_grid(p1, p2, align = "h", ncol = 2, rel_widths = c(1,0.6))
+
+```
+
+
+**Fig2.a** summarizes the results of the countrywise regressions. The markers show the estimated parameters of owning a computer and error bars show the 95% CI. The unconditional estimates shows the gap without control variables and the conditional estimates shows the results from the full model with the students' background control variables. The unconditional ICT gap seems to be the strongest in Slovakia and Germany, where students without ICT resources suffer more than 80 points loss in math test scores, on average. When all student background attributes are controlled for, some part of this disadvantage diminishes in all the examined countries, just like we have seen from the regression analysis of Hungary. If we compare the conditional gap with other countries, Hungary seems to have the smallest negative gap together with Slovakia, Poland and Great Britain. It can either mean that the disadvantage in academic loss due to the lack of ICT devices is moderate in Hungary compared to other European countries or that the students' performance is strongly related to the other background variables, such as the SES index or the education of parents. If we look at **Table 5** in **Appendix A.6.** it seems that the parents' education adds the most to the performance of the student in Hungary among the examined countries.
+
+Finally, we can make another stability check by comparing different PISA survey results in Hungary. The evolution of the ICT gap over the past three PISA math tests in Hungary is shown in **Fig2.b**. It seems that the academic loss due to the ICT gap, both conditional and unconditional, slightly decreased over the examined three years. After controlling for the characteristics of the students we can observe that the ICT gap seems to be fairly stable over the three assessments with 23 to 18 test score disadvantage of the students without computers in their homes.
 
 \vspace{-5mm}
 ### Conclusion
 \vspace{-3mm}
 
-To sum up, our analysis suggested that even before the Coronavirus pandemic secondary school students without computers at their homes suffered loss in their academic performance. Using data from the PISA survey on fifteen-year-old students, we measured the links between students’ scores in maths and their possibilities of accessing computers in their homes (hence attending remote learning). We found that in Hungary the lack of such resources are associated with about 60 points lower scores in the math test in the 2018 assessment. When we controlled for the background characteristics of the students the academic loss decreased to about 20 scores disadvantage, which seemed to be stable over the past three PISA assessments in Hungary. When we compared the results found in the Hungarian data to other European countries it also supported the conclusion that the lack of ICT resources are negatively correlated with cognitive outcomes. Finally, it is important to emphasize the limitations of this study. We did not consider the attributes of the schools where students continue their studies, such as the size of the school, the type (whether it is private of public school) and the student-teacher ratio of the institution, as additional control variables. We can expect that involving the school effect into our analysis would further decrease the ICT gap. 
+To sum up, our analysis suggested that even before the Coronavirus pandemic secondary school students without computers at their homes suffered loss in their academic performance. Using data from the PISA survey on fifteen-year-old students, we measured the links between students’ scores in maths and their possibilities of accessing computers in their homes (hence attending remote learning). We found that in Hungary the lack of such resources are associated with more than 60 points lower scores in the math test in the 2018 assessment. When we controlled for the background characteristics of the students the academic loss decreased to about 20 scores disadvantage, which seemed to be stable over the past three PISA assessments in Hungary. When we compared the results found in the Hungarian data to other European countries it also supported the conclusion that the lack of ICT resources are negatively correlated with cognitive outcomes. Finally, it is important to emphasize the limitations of this study. We did not consider the attributes of the schools where students continue their studies, such as the size of the school, the type (whether it is private of public school) and the student-teacher ratio of the institution, as additional control variables. We can expect that involving the school effect into our analysis would further decrease the ICT gap. 
 
 
 \newpage
@@ -657,8 +758,7 @@ datasummary(  ( Heading("Computer") *
 ```
 
 \newpage
-### A2. Single factor analysis - Histograms of explanatory variables
-
+### A2. Histograms of the test scores and ESCS
 ```{r A2-histograms, echo = F, fig.align='center', fig.height=6, fig.width=10, warning=F, message=F}
 
 # Histograms
@@ -674,20 +774,23 @@ hist_escs <- histograms(df$escs, 'Socio-economic index (ESCS)', 0.2) # ~ Normal
 blank <- grid.rect(gp=gpar(col="white"))
 
 # Visualize
-grid.arrange(hist_math, 
+grid.arrange(grobs = list(hist_math, 
              hist_read, 
              hist_science,
-             hist_escs,
+             hist_escs),
              ncol=2,
              top = "Fig3.: Histograms of the test scores and ESCS",
-             bottom = "Note: Normal curve was added to the chart.")
+             #bottom = "Note: Normal curve was added to the chart."
+             )
 
 rm("hist_math", "hist_read", "hist_science", "hist_escs")
 
 ```
 
+
+
 \newpage
-#### A3. Relatinship with outcome variables (mat and read scores)
+### A3. Relatinship with outcome variables (math and read scores)
 
 ```{r A3-relationship-with-outcome, echo = F, fig.align='center', fig.height=12, fig.width=10, warning=F, message=F}
 
@@ -717,11 +820,16 @@ bin_scatter_read_desk <- bin_scatters(data = df, x_var = has_desk, y_var = read,
 
 # Parents' education
 bin_scatter_math_pareduc <- bin_scatters_multi(data = df, x_var = parents_education, y_var = math, x_lab = "Parents' highest education", y_lab = "Math score") # ~ Monotonicly increasing
+bin_scatter_math_pareduc <- bin_scatter_math_pareduc + scale_x_discrete(labels = c("0-8 years", "10.5 years", "12 years",  "NA")) 
 bin_scatter_read_pareduc <- bin_scatters_multi(data = df, x_var = parents_education, y_var = read, x_lab = "Parents' highest education", y_lab = "Read score") # Monotonicly increasing
+bin_scatter_read_pareduc <- bin_scatter_read_pareduc + scale_x_discrete(labels = c("0-8 years", "10.5 years", "12 years",  "NA")) 
+
 
 # Books
 bin_scatter_math_books <- bin_scatters_multi(data = df, x_var = books, y_var = math, x_lab = "Number of books", y_lab = "Math score") # ~ Monotonicly increasing
+bin_scatter_math_books <- bin_scatter_math_books + scale_x_discrete(labels = c("0-10", "11-25", "26-100",  "101-200", "201-500", "500+", "NA")) 
 bin_scatter_read_books <- bin_scatters_multi(data = df, x_var = books, y_var = read, x_lab = "Number of books", y_lab = "Read score") # Monotonicly increasing
+bin_scatter_read_books <- bin_scatter_read_books + scale_x_discrete(labels = c("0-10", "11-25", "26-100",  "101-200", "201-500", "500+", "NA")) 
 
 
 grid.arrange( grobs = list(
@@ -740,7 +848,7 @@ grid.arrange( grobs = list(
 ```
 
 \newpage
-```{r A3-relatinship-with-outcone2, echo = F, fig.align='center', fig.height=8, fig.width=10, warning=F, message=F}
+```{r A3-relatinship-with-outcone2, echo = F, fig.align='center', fig.height=10, fig.width=10, warning=F, message=F}
 
 # Relationship with outcome - Qualitative variables (continued)
 
@@ -758,10 +866,7 @@ grid.arrange( grobs = list(
 ```
 
 
-
 \newpage
-### A.4. Regression results - Building steps
-
 ```{r A4-regression-HUN-building-steps,  echo = F,  warning = F, message = F}
 
 # Summary table of the building steps of the HUN 2018 model
@@ -773,14 +878,13 @@ msummary(list("(1)" = reg1, "(2)" = reg2, "(3)" = reg3, "(4)" =  reg4, "(5)" = r
          estimate = "{estimate}{stars} ", 
          statistic = "std.error",
          coef_rename = varname_report,
-         title = "Dependent variable: Math score") %>% 
+         title = "A.4. Regression results - Dependent variable: Math score",
+         notes = "Note: Data of PISA survey 2018, Hungary.") %>% 
         kable_classic(full_width = F, position = "center" , font_size = 9) %>% 
   kableExtra::landscape()
 
 ```
 
-\newpage
-### A.5. Robustness checks - Read and Science scores
 
 ```{r A5-regression-HUN-read-science, echo = F,  warning = F, message = F}
 
@@ -813,14 +917,15 @@ msummary(list("Read" = reg1_r, "Read" = reg8_r, "Science" = reg1_sc, "Science"  
          statistic = "std.error",
          #coef_group = groupConf,
          coef_rename = varname_report,
-         title = "Dependent variable: Math score") %>% 
+         title = "A.5. Robustness check by subjects - Dependent variable: Reading / Science score",
+         notes = "Note: Data of PISA survey 2018, Hungary.") %>% 
         kable_classic(full_width = F, position = "center" , font_size = 9)
 
 
 ```
 
 
-### A.6. Robustness checks - Other countries
+
 
 ```{r A6-regressions-countries, echo = F, warning = F, message = F}
 
@@ -833,7 +938,8 @@ msummary(list("HUN" = reg_c_1,  "POL" = reg_c_2, "CZE" = reg_c_3, "SVK" = reg_c_
          statistic = "std.error",
          #coef_group = groupConf,
          coef_rename = varname_report,
-         title = "Dependent variable: Math score") %>% 
+         title = "A.6. Robustness check by countries - Dependent variable: Math score",
+         notes = "Note: Data of PISA survey 2018.") %>% 
         kable_classic(full_width = F, position = "center" , font_size = 9) %>% 
   kableExtra::landscape()
 
@@ -841,9 +947,6 @@ msummary(list("HUN" = reg_c_1,  "POL" = reg_c_2, "CZE" = reg_c_3, "SVK" = reg_c_
 
 
 \newpage
-#### A.7. Robustness checks - Other years
-
-
 ```{r A7-regressions-years, echo = F, warning=F, message=F}
 
 # Summary results of HUN 2018, 2015 and 2013 comparison
@@ -871,63 +974,10 @@ msummary(list("2012 - HUN" = reg_cu_3, "2012 - HUN" = reg_c_3, "2015 - HUN" = re
          statistic = "std.error",
          #coef_group = groupConf,
          coef_rename = varname_report,
-         title = "Dependent variable: Math score") %>% 
+         title = "A.7. Robustness check by years - Dependent variable: Math score",
+         notes = "Note: Data of PISA survey 2018, 2015 and 2012, Hungary.") %>% 
         kable_classic(full_width = F, position = "center" , font_size = 9) 
 
 
-```
-
-
-```{r A7-regressions-years-errorbar, echo = F, fig.align='center', fig.height=3, fig.width=3, warning=F, message=F}
-
-SI <- data.frame(matrix(NA, nrow = 6, ncol = 6))
-colnames(SI)<- c("model", "type", "coeff","se","conf_low","conf_high" )
-
-years <- c("2018", "2015", "2013", "2018", "2015", "2013")
-
-for (i in 1:3) {
-  
-  SI$type[i] <- "Conditional"
-  SI$model[i] <- "HUN"
-  SI$year[i] <- years[i]
-  SI$coeff[i] <- eval(as.name(paste0('reg_c_',i)))$coefficients[2]  
-  SI$se[i] <- eval(as.name(paste0('reg_c_',i)))$se[2]  
-  SI$conf_low[i] <- SI$coeff[i] - 1.96 * SI$se[i]  
-  SI$conf_high[i] <- SI$coeff[i] + 1.96 * SI$se[i]  
-
-}
-
-for (i in 4:6) {
-  
-  SI$type[i] <- "Unconditional"
-  SI$model[i] <- "HUN"
-  SI$year[i] <- years[i]
-  SI$coeff[i] <- eval(as.name(paste0('reg_cu_',i-3)))$coefficients[2]  
-  SI$se[i] <- eval(as.name(paste0('reg_c_',i-3)))$se[2]  
-  SI$conf_low[i] <- SI$coeff[i] - 1.96 * SI$se[i]  
-  SI$conf_high[i] <- SI$coeff[i] + 1.96 * SI$se[i]  
-
-}
-
-
-ggplot(SI, aes(x = coeff, y = factor(year, level = c("2013", "2015", "2018")), xmin = conf_low, xmax = conf_high)) +
-  geom_errorbarh(height=.2, aes(color = type), size = 1) +
-  geom_point(size = 2) +
-  theme_bw() +
-  labs(x = "Difference inmath scores", y= "", color = "", caption="Note: Markers show the estimated parameter of owning a computer and error bars \n show the 95% CI.") +
-  scale_color_manual(values = c("#00AFBB", "#2ca25f")) +
-  scale_x_continuous(limits = c(-110, 0), breaks = seq(-120, 0, by = 20)) +
-  ggtitle("Fig.8: Academic loss due to ICT gap in Hungary (2012, 2015 and 2018)") +
-  theme(
-     plot.title = element_text(size = 10L,
-    face = "bold", hjust = 0.5),
-    legend.position = "bottom",
-    legend.margin=margin(-15,-10,-10,-10),
-    axis.title.x = element_text(face = "bold"),
-    axis.text.y = element_text(face = "bold"),
-    plot.caption=element_text(size=7.5, hjust=0, margin=margin(t=15))) +
-  coord_flip()
-
- 
 ```
 
