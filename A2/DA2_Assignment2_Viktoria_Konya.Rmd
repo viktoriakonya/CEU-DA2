@@ -83,7 +83,7 @@ datasummary(  ( Heading("Rating category") *
 
 
 ```
-Almost 60% of the accommodations have 4 or higher ratings. We can see that the average distance from the city center is about 0.1 kilometer higher in case of the highly rated places. The number of stars range between 1 and 5 stars in both rating groups, however the median number of stars is 4 in case of the highly rated, and 3 in case of the accommodations with lower ratings. We can also see that the number of rating reviews range in a wide scale including observations with very few ratings. For the subsequent analysis, I excluded accommodations with less than 50 reviews to avoid this noise. 
+Almost 60% of the accommodations have 4 or higher ratings. We can see that the average distance from the city center is about 0.1 mile higher in case of the highly rated places. The number of stars range between 1 and 5 stars in both rating groups, however the median number of stars is 4 in case of the highly rated, and 3 in case of the accommodations with lower ratings. We can also see that the number of rating reviews range in a wide scale including observations with very few ratings. For the subsequent analysis, I excluded accommodations with less than 50 reviews to avoid this noise. 
 
 ```{r echo = F, include = F}
 
@@ -158,7 +158,7 @@ rm(probit_marg, logit_marg)
 ```
 
 
-In the LPM model the predicted coefficient of stars is 0.23 and statistically significant at 1%. Comparing accommodations with the same distance from the city center and of the same type, those with one additional star are 23 percentage point more likely to be highly rated. Distance has positive coefficient suggesting that, conditional on other characteristics, accommodations one kilometer farther away from the city center are 2.7 percentage point more likely to have high ratings. In case of the accommodation types, the control group is the hotels. We can see that apartments are 7.7, pensions are 3.7 and hostels are 9 percentage points less likely to have 4 or above ratings than hotels conditional on the other characteristics, however these coefficients are statistically not significant. 
+In the LPM model the predicted coefficient of stars is 0.23 and statistically significant at 1%. Comparing accommodations with the same distance from the city center and of the same type, those with one additional star are 23 percentage point more likely to be highly rated. Distance has positive coefficient suggesting that, conditional on other characteristics, accommodations one mile farther away from the city center are 2.7 percentage point more likely to have high ratings. In case of the accommodation types, the control group is the hotels. We can see that apartments are 7.7, pensions are 3.7 and hostels are 9 percentage points less likely to have 4 or above ratings than hotels conditional on the other characteristics, however these coefficients are statistically not significant. 
 
 
 The marginal differences from the logit and probit models are almost the same and are very similar to the corresponding coefficients from the LPM model. If we look at the number of stars, we can see that accommodations located at the same distance from the center and of the same type have 21.3 and 21.6 percentage points higher chance to be highly rated if they have one star higher hotel rating. The coefficients and the robust standard errors of the distance are technically the same as from the LPM model and similarly, they are statistically not significant. The logit and probit models indicate that apartments are 9.7 and 9.3 percentage point less likely to have high hotel ratings than hotels, conditional on the other attributes of the accommodation and this difference is statistically significant. Overall, we can conclude that the three estimated models give very similar results.
@@ -305,7 +305,7 @@ grid.arrange(p1,p2, ncol=2)
 
 ```
 
-The LPM model has predictions out of the 0-1 range for 5.3% of the observations. The histograms suggest that in case of both models the distribution of the fitted probabilities among ccommodations with high ratings are are shifted towards the higher edge of the probability range. However, the distributions are overlapping which suggests that the predictive power of the two models are not that strong. 
+The LPM model has predictions out of the 0-1 range for 5.3% of the observations. The histograms suggest that in case of both models the distribution of the fitted probabilities among accommodations with high ratings are are shifted towards the higher edge of the probability range. However, the distributions are overlapping which suggests that the predictive power of the two models are not that strong. 
 
 ### Summary 
 
