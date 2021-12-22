@@ -633,21 +633,21 @@ p1 <- ggplot(SI, aes(x = coeff, y = factor(model, level = c("HUN", "POL", "CZE",
 # Summary results of HUN 2018, 2015 and 2013 comparison
 # HUN - 2018
 df2 <- df0 %>% filter(country == 'HUN' & year == 2018)
-reg_cu_1 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
-reg_c_1 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_cu_hu_1 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_hu_1 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
 
 # HUN - 2015
 df2 <- df0 %>% filter(country == 'HUN' & year == 2015)
-reg_cu_2 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
-reg_c_2 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_cu_hu_2 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_hu_2 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
 
 # HUN - 2012
 df2 <- df0 %>% filter(country == 'HUN' & year == 2012)
-reg_cu_3 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
-reg_c_3 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_cu_hu_3 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_hu_3 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
 
 
-msummary(list("2012 - HUN" = reg_cu_3, "2012 - HUN" = reg_c_3, "2015 - HUN" = reg_cu_2, "2015 - HUN" = reg_c_2, "2018 - HUN" = reg_cu_1,  "2018 - HUN" = reg_c_1 ),
+msummary(list("2012 - HUN" = reg_cu_hu_3, "2012 - HUN" = reg_c_hu_3, "2015 - HUN" = reg_cu_hu_2, "2015 - HUN" = reg_c_hu_2, "2018 - HUN" = reg_cu_hu_1,  "2018 - HUN" = reg_c_hu_1 ),
          fmt="%.2f",
          gof_omit = 'DF|Deviance|Log.Lik.|F|AIC|BIC|R2 Within|R2 Pseudo|Std.Errors',
          stars=TRUE,
@@ -670,8 +670,8 @@ for (i in 1:3) {
   SI$type[i] <- "Conditional"
   SI$model[i] <- "HUN"
   SI$year[i] <- years[i]
-  SI$coeff[i] <- eval(as.name(paste0('reg_c_',i)))$coefficients[2]  
-  SI$se[i] <- eval(as.name(paste0('reg_c_',i)))$se[2]  
+  SI$coeff[i] <- eval(as.name(paste0('reg_c_hu_',i)))$coefficients[2]  
+  SI$se[i] <- eval(as.name(paste0('reg_c_hu_',i)))$se[2]  
   SI$conf_low[i] <- SI$coeff[i] - 1.96 * SI$se[i]  
   SI$conf_high[i] <- SI$coeff[i] + 1.96 * SI$se[i]  
 
@@ -682,8 +682,8 @@ for (i in 4:6) {
   SI$type[i] <- "Unconditional"
   SI$model[i] <- "HUN"
   SI$year[i] <- years[i]
-  SI$coeff[i] <- eval(as.name(paste0('reg_cu_',i-3)))$coefficients[2]  
-  SI$se[i] <- eval(as.name(paste0('reg_c_',i-3)))$se[2]  
+  SI$coeff[i] <- eval(as.name(paste0('reg_cu_hu_',i-3)))$coefficients[2]  
+  SI$se[i] <- eval(as.name(paste0('reg_c_hu_',i-3)))$se[2]  
   SI$conf_low[i] <- SI$coeff[i] - 1.96 * SI$se[i]  
   SI$conf_high[i] <- SI$coeff[i] + 1.96 * SI$se[i]  
 
@@ -953,17 +953,17 @@ msummary(list("HUN" = reg_c_1,  "POL" = reg_c_2, "CZE" = reg_c_3, "SVK" = reg_c_
 # HUN - 2018
 df2 <- df0 %>% filter(country == 'HUN' & year == 2018)
 reg_cu_1 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
-reg_c_1 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_1 <- feols(math ~ has_computer + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
 
 # HUN - 2015
 df2 <- df0 %>% filter(country == 'HUN' & year == 2015)
 reg_cu_2 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
-reg_c_2 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_2 <- feols(math ~ has_computer + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
 
 # HUN - 2012
 df2 <- df0 %>% filter(country == 'HUN' & year == 2012)
 reg_cu_3 <- feols(math ~ has_computer , data = df2, vcov = 'hetero', weights = df2$stu_wgt )
-reg_c_3 <- feols(math ~ has_computer + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
+reg_c_3 <- feols(math ~ has_computer + has_internet + escs + as.factor(parents_education) + female + has_room + as.factor(books) + has_room + has_desk, data = df2, vcov = 'hetero', weights = df2$stu_wgt )
 
 
 msummary(list("2012 - HUN" = reg_cu_3, "2012 - HUN" = reg_c_3, "2015 - HUN" = reg_cu_2, "2015 - HUN" = reg_c_2, "2018 - HUN" = reg_cu_1,  "2018 - HUN" = reg_c_1 ),
